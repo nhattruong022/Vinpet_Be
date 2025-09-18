@@ -32,6 +32,9 @@ const configureMiddleware = (app: Application): void => {
   // Cookie parsing middleware
   app.use(cookieParser());
 
+  // Serve static files for uploads
+  app.use('/uploads', express.static('uploads'));
+
   // Request logging
   app.use((req, res, next) => {
     console.log(`${req.method} ${req.path} - Status: ${res.statusCode}`);

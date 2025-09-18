@@ -1,12 +1,18 @@
 import { Router } from 'express';
 import userRoutes from './userRoutes';
+import authRoutes from './authRoutes';
+import postRoutes from './postRoutes';
+import mediaRoutes from './mediaRoutes';
 
 
 
 const router = Router();
 
 // API Routes
-router.use('/api/users', userRoutes);
+router.use('/auth', authRoutes);
+router.use('/users', userRoutes);
+router.use('/posts', postRoutes);
+router.use('/media', mediaRoutes);
 
 // Root endpoint
 router.get('/', (req, res) => {
@@ -19,7 +25,10 @@ router.get('/', (req, res) => {
       timestamp: new Date().toISOString(),
       clientIP: req.ip,
       endpoints: {
-        users: '/api/users'
+        auth: '/api/auth',
+        users: '/api/users',
+        posts: '/api/posts',
+        media: '/api/media'
       },
     },
   });
