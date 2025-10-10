@@ -5,7 +5,7 @@ const router = Router();
 
 // Post routes
 router.get('/', PostController.getPosts);
-router.get('/seo-preview', PostController.getSeoPreview);
+router.post('/seo-preview', PostController.getSeoPreview);
 router.get('/:id', PostController.getPostById);
 router.post('/', PostController.createPost);
 router.put('/:id', PostController.updatePost);

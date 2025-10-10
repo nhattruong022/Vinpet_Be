@@ -3,9 +3,7 @@ import { UserController } from '../controllers/UserController';
 
 const router = Router();
 
-// Public routes
-// router.post('/register', UserController.register);
-
-
+// User routes
+router.put('/profile', UserController.updateProfile);
 
 export default router;
