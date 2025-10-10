@@ -146,6 +146,290 @@ const swaggerOptions = {
                 data: { type: 'object' }
               }
             },
+            images: {
+              type: 'array',
+              items: {
+                type: 'object',
+                properties: {
+                  id: {
+                    type: 'string',
+                    description: 'Photo ID'
+                  },
+                  position: {
+                    type: 'integer',
+                    description: 'Position of image in post'
+                  },
+                  postId: {
+                    type: 'string',
+                    description: 'Post ID that this image belongs to'
+                  },
+                  image: {
+                    type: 'string',
+                    description: 'Base64 encoded image data'
+                  }
+                }
+              },
+              description: 'Array of images associated with the post'
+            },
+            createdAt: {
+              type: 'string',
+              format: 'date-time'
+            },
+            updatedAt: {
+              type: 'string',
+              format: 'date-time'
+            }
+          }
+        },
+        Category: {
+          type: 'object',
+          properties: {
+            _id: {
+              type: 'string',
+              description: 'Category ID'
+            },
+            name: {
+              type: 'string',
+              description: 'Category name'
+            },
+            slug: {
+              type: 'string',
+              description: 'Category slug'
+            },
+            description: {
+              type: 'string',
+              description: 'Category description'
+            },
+            parent: {
+              type: 'string',
+              description: 'Parent category ID'
+            },
+            status: {
+              type: 'string',
+              enum: ['active', 'inactive'],
+              description: 'Category status'
+            },
+            metaTitle: {
+              type: 'string',
+              description: 'SEO meta title'
+            },
+            metaDescription: {
+              type: 'string',
+              description: 'SEO meta description'
+            },
+            featuredImage: {
+              type: 'string',
+              description: 'Featured image URL'
+            },
+            sortOrder: {
+              type: 'integer',
+              description: 'Sort order'
+            },
+            children: {
+              type: 'array',
+              items: {
+                $ref: '#/components/schemas/Category'
+              },
+              description: 'Child categories'
+            },
+            posts: {
+              type: 'array',
+              items: {
+                $ref: '#/components/schemas/Post'
+              },
+              description: 'Posts in this category'
+            },
+            postsCount: {
+              type: 'integer',
+              description: 'Number of posts in this category'
+            },
+            createdAt: {
+              type: 'string',
+              format: 'date-time'
+            },
+            updatedAt: {
+              type: 'string',
+              format: 'date-time'
+            }
+          }
+        },
+        CategoryTree: {
+          type: 'object',
+          properties: {
+            _id: {
+              type: 'string',
+              description: 'Category ID'
+            },
+            name: {
+              type: 'string',
+              description: 'Category name'
+            },
+            slug: {
+              type: 'string',
+              description: 'Category slug'
+            },
+            description: {
+              type: 'string',
+              description: 'Category description'
+            },
+            parent: {
+              type: 'string',
+              description: 'Parent category ID'
+            },
+            status: {
+              type: 'string',
+              enum: ['active', 'inactive'],
+              description: 'Category status'
+            },
+            sortOrder: {
+              type: 'integer',
+              description: 'Sort order'
+            },
+            children: {
+              type: 'array',
+              items: {
+                $ref: '#/components/schemas/CategoryTree'
+              },
+              description: 'Child categories'
+            },
+            postsCount: {
+              type: 'integer',
+              description: 'Number of posts in this category'
+            }
+          }
+        },
+        User: {
+          type: 'object',
+          properties: {
+            _id: {
+              type: 'string',
+              description: 'User ID'
+            },
+            email: {
+              type: 'string',
+              format: 'email',
+              description: 'User email'
+            },
+            firstName: {
+              type: 'string',
+              description: 'User first name'
+            },
+            lastName: {
+              type: 'string',
+              description: 'User last name'
+            },
+            bio: {
+              type: 'string',
+              description: 'User biography'
+            },
+            avatar: {
+              type: 'string',
+              description: 'Avatar image URL'
+            },
+            role: {
+              type: 'string',
+              enum: ['admin', 'editor', 'author', 'subscriber'],
+              description: 'User role'
+            },
+            status: {
+              type: 'string',
+              enum: ['active', 'inactive', 'pending'],
+              description: 'User status'
+            },
+            posts: {
+              type: 'array',
+              items: {
+                $ref: '#/components/schemas/Post'
+              },
+              description: 'User posts'
+            },
+            postsCount: {
+              type: 'integer',
+              description: 'Number of posts by user'
+            },
+            createdAt: {
+              type: 'string',
+              format: 'date-time'
+            },
+            updatedAt: {
+              type: 'string',
+              format: 'date-time'
+            }
+          }
+        },
+        Photo: {
+          type: 'object',
+          properties: {
+            _id: {
+              type: 'string',
+              description: 'Photo ID'
+            },
+            filename: {
+              type: 'string',
+              description: 'Generated filename'
+            },
+            originalName: {
+              type: 'string',
+              description: 'Original filename'
+            },
+            mimetype: {
+              type: 'string',
+              description: 'File MIME type'
+            },
+            size: {
+              type: 'integer',
+              description: 'File size in bytes'
+            },
+            url: {
+              type: 'string',
+              description: 'File URL'
+            },
+            path: {
+              type: 'string',
+              description: 'File path on server'
+            },
+            alt: {
+              type: 'string',
+              description: 'Alt text for accessibility'
+            },
+            caption: {
+              type: 'string',
+              description: 'Image caption'
+            },
+            position: {
+              type: 'integer',
+              description: 'Position of image in post',
+              default: 0
+            },
+            postId: {
+              type: 'string',
+              description: 'Associated post ID'
+            },
+            userId: {
+              type: 'string',
+              description: 'Associated user ID'
+            },
+            status: {
+              type: 'string',
+              enum: ['active', 'inactive', 'deleted'],
+              description: 'Photo status'
+            },
+            altText: {
+              type: 'string',
+              description: 'SEO alt text'
+            },
+            title: {
+              type: 'string',
+              description: 'Photo title'
+            },
+            extension: {
+              type: 'string',
+              description: 'File extension'
+            },
+            sizeFormatted: {
+              type: 'string',
+              description: 'Human readable file size'
+            },
             createdAt: {
               type: 'string',
               format: 'date-time'

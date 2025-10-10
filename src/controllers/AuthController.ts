@@ -202,4 +202,50 @@ export class AuthController {
       }
     }
   }
+
+  /**
+   * @swagger
+   * /api/auth/logout:
+   *   post:
+   *     summary: Logout user
+   *     tags: [Auth]
+   *     security:
+   *       - bearerAuth: []
+   *     responses:
+   *       200:
+   *         description: Logout successful
+   *         content:
+   *           application/json:
+   *             schema:
+   *               type: object
+   *               properties:
+   *                 success:
+   *                   type: boolean
+   *                 message:
+   *                   type: string
+   *       401:
+   *         description: Unauthorized
+   *       500:
+   *         description: Internal server error
+   */
+  static async logout(req: Request, res: Response): Promise<void> {
+    try {
+      // In a JWT-based system, logout is typically handled client-side
+      // by removing the token from storage. However, we can provide
+      // server-side validation and response.
+      
+      // Optional: You could implement token blacklisting here
+      // by storing invalidated tokens in a database or cache
+      
+      res.status(200).json({
+        success: true,
+        message: 'Logout successful'
+      });
+    } catch (error: any) {
+      res.status(500).json({
+        success: false,
+        message: 'Internal server error'
+      });
+    }
+  }
 }

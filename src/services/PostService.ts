@@ -1,5 +1,6 @@
 import { Post, IPost } from '../models/Post';
 import { User } from '../models/User';
+import { PhotoService } from './PhotoService';
 import mongoose from 'mongoose';
 
 export class PostService {
@@ -46,9 +47,21 @@ export class PostService {
    */
   static async getPostById(id: string): Promise<IPost | null> {
     try {
-      return await Post.findById(id)
+      const post = await Post.findById(id)
         .populate('author', 'email firstName lastName')
         .populate('categories', 'name slug');
+      
+      if (!post) {
+        return null;
+      }
+
+      // Get images from photos table
+      const images = await PhotoService.getPhotosByPost((post._id as any).toString());
+      
+      return {
+        ...post.toObject(),
+        images: images
+      } as any;
     } catch (error: any) {
       throw new Error(`Failed to get post: ${error.message}`);
     }
@@ -123,10 +136,21 @@ export class PostService {
         Post.countDocuments(query)
       ]);
 
+      // Get images for each post from photos table
+      const postsWithImages = await Promise.all(
+        posts.map(async (post) => {
+          const images = await PhotoService.getPhotosByPost((post._id as any).toString());
+          return {
+            ...post.toObject(),
+            images: images
+          };
+        })
+      );
+
       const totalPages = Math.ceil(totalItems / limit);
 
       return {
-        posts,
+        posts: postsWithImages as any,
         totalItems,
         totalPages,
         currentPage: page
@@ -150,12 +174,24 @@ export class PostService {
         }
       }
 
-      return await Post.findByIdAndUpdate(
+      const updatedPost = await Post.findByIdAndUpdate(
         id,
         updateData,
         { new: true, runValidators: true }
       ).populate('author', 'email firstName lastName')
         .populate('categories', 'name slug');
+
+      if (!updatedPost) {
+        return null;
+      }
+
+      // Get images from photos table
+      const images = await PhotoService.getPhotosByPost((updatedPost._id as any).toString());
+      
+      return {
+        ...updatedPost.toObject(),
+        images: images
+      } as any;
     } catch (error: any) {
       throw new Error(`Failed to update post: ${error.message}`);
     }

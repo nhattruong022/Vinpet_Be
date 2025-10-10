@@ -6,6 +6,7 @@ const router = Router();
 // Media routes
 router.post('/upload', MediaController.uploadMiddleware, MediaController.uploadFile);
 router.get('/:filename', MediaController.getMediaInfo);
-router.delete('/:filename', MediaController.deleteMedia);
+router.put('/:filename', MediaController.updateMedia);
+router.delete('/:id', MediaController.deleteMedia);
 
 export default router;

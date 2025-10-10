@@ -3,6 +3,7 @@ import userRoutes from './userRoutes';
 import authRoutes from './authRoutes';
 import postRoutes from './postRoutes';
 import mediaRoutes from './mediaRoutes';
+import categoryRoutes from './categoryRoutes';
 
 
 
@@ -13,6 +14,7 @@ router.use('/auth', authRoutes);
 router.use('/users', userRoutes);
 router.use('/posts', postRoutes);
 router.use('/media', mediaRoutes);
+router.use('/categories', categoryRoutes);
 
 // Root endpoint
 router.get('/', (req, res) => {
@@ -28,7 +30,8 @@ router.get('/', (req, res) => {
         auth: '/api/auth',
         users: '/api/users',
         posts: '/api/posts',
-        media: '/api/media'
+        media: '/api/media',
+        categories: '/api/categories'
       },
     },
   });
