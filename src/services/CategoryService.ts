@@ -12,13 +12,19 @@ export interface CategoryFilters {
 }
 
 export interface CategoryCreateData {
-  name: string;
+  name?: string;
   description?: string;
   parent?: string;
   color?: string;
   icon?: string;
   metaTitle?: string;
   metaDescription?: string;
+  name_en?: string;
+  name_vi?: string;
+  name_ko?: string;
+  description_en?: string;
+  description_vi?: string;
+  description_ko?: string;
 }
 
 export interface CategoryUpdateData {
@@ -31,6 +37,12 @@ export interface CategoryUpdateData {
   sortOrder?: number;
   metaTitle?: string;
   metaDescription?: string;
+  name_en?: string | null;
+  name_vi?: string | null;
+  name_ko?: string | null;
+  description_en?: string | null;
+  description_vi?: string | null;
+  description_ko?: string | null;
 }
 
 export class CategoryService {
@@ -166,10 +178,24 @@ export class CategoryService {
    * Create new category
    */
   static async createCategory(data: CategoryCreateData): Promise<ICategory> {
-    const slug = await this.ensureUniqueSlug(this.generateSlug(data.name));
+    const baseName = data.name
+      ?? data.name_en
+      ?? data.name_vi
+      ?? data.name_ko;
+
+    if (!baseName) {
+      throw new Error('Category name is required');
+    }
+
+    const slug = await this.ensureUniqueSlug(this.generateSlug(baseName));
 
     const categoryData = {
       ...data,
+      name: baseName,
+      description: data.description
+        ?? data.description_en
+        ?? data.description_vi
+        ?? data.description_ko,
       slug,
       parent: data.parent ? new mongoose.Types.ObjectId(data.parent) : null
     };
@@ -198,36 +224,83 @@ export class CategoryService {
       return null;
     }
 
-    const updateData: any = { ...data };
+    const category = await Category.findById(id);
+    if (!category) {
+      return null;
+    }
 
-    // Generate new slug if name changed
-    if (data.name) {
-      const slug = await this.ensureUniqueSlug(this.generateSlug(data.name), id);
+    const updateData: any = {};
+
+    const baseName = data.name
+      ?? data.name_en
+      ?? data.name_vi
+      ?? data.name_ko;
+
+    if (baseName) {
+      updateData.name = baseName;
+      const slug = await this.ensureUniqueSlug(this.generateSlug(baseName), id);
       updateData.slug = slug;
     }
 
+    if (data.description !== undefined) {
+      updateData.description = data.description;
+    } else if (
+      data.description_en !== undefined ||
+      data.description_vi !== undefined ||
+      data.description_ko !== undefined
+    ) {
+      updateData.description = data.description_en
+        ?? data.description_vi
+        ?? data.description_ko
+        ?? category.description;
+    }
+
+    // Copy multilingual fields and other simple properties
+    const directFields = [
+      'name_en',
+      'name_vi',
+      'name_ko',
+      'description_en',
+      'description_vi',
+      'description_ko',
+      'color',
+      'icon',
+      'isActive',
+      'sortOrder',
+      'metaTitle',
+      'metaDescription'
+    ] as const;
+
+    directFields.forEach((field) => {
+      const value = data[field];
+      if (value !== undefined) {
+        if (value === null) {
+          updateData[field] = undefined;
+        } else {
+          updateData[field] = value;
+        }
+      }
+    });
+
     // Handle parent change
     if (data.parent !== undefined) {
-      const category = await Category.findById(id);
-      if (category) {
-        // Remove from old parent's children
-        if (category.parent) {
-          await Category.findByIdAndUpdate(
-            category.parent,
-            { $pull: { children: category._id } }
-          );
-        }
+      // Remove from old parent's children
+      if (category.parent) {
+        await Category.findByIdAndUpdate(
+          category.parent,
+          { $pull: { children: category._id } }
+        );
+      }
 
-        // Add to new parent's children
-        if (data.parent) {
-          updateData.parent = new mongoose.Types.ObjectId(data.parent);
-          await Category.findByIdAndUpdate(
-            data.parent,
-            { $addToSet: { children: category._id } }
-          );
-        } else {
-          updateData.parent = null;
-        }
+      // Add to new parent's children
+      if (data.parent) {
+        updateData.parent = new mongoose.Types.ObjectId(data.parent);
+        await Category.findByIdAndUpdate(
+          data.parent,
+          { $addToSet: { children: category._id } }
+        );
+      } else {
+        updateData.parent = null;
       }
     }
 
@@ -284,10 +357,22 @@ export class CategoryService {
   /**
    * Get category tree (nested structure)
    */
-  static async getCategoryTree(): Promise<any[]> {
-    const categories = await Category.find({ isActive: true })
-      .populate('parent', 'name slug')
-      .populate('children', 'name slug')
+  static async getCategoryTree(options: {
+    rootOnly?: boolean;
+    includeInactive?: boolean;
+  } = {}): Promise<any[]> {
+    const {
+      rootOnly = false,
+      includeInactive = false
+    } = options;
+
+    const match: Record<string, any> = {};
+
+    if (!includeInactive) {
+      match.isActive = true;
+    }
+
+    const categories = await Category.find(match)
       .sort({ sortOrder: 1, name: 1 })
       .lean();
 
@@ -304,7 +389,10 @@ export class CategoryService {
     categories.forEach(category => {
       const categoryObj = categoryMap.get(category._id.toString());
       if (category.parent) {
-        const parent = categoryMap.get(category.parent.toString());
+        const parentId = category.parent instanceof mongoose.Types.ObjectId
+          ? category.parent.toString()
+          : category.parent;
+        const parent = categoryMap.get(parentId);
         if (parent) {
           parent.children.push(categoryObj);
         }
@@ -313,6 +401,32 @@ export class CategoryService {
       }
     });
 
+    const getComparableName = (node: any) =>
+      (node?.name ?? node?.name_en ?? node?.name_vi ?? node?.name_ko ?? '').toString();
+
+    const sortChildren = (nodes: any[]) => {
+      nodes.sort((a, b) => {
+        if (a.sortOrder !== b.sortOrder) {
+          return (a.sortOrder ?? 0) - (b.sortOrder ?? 0);
+        }
+        const nameA = getComparableName(a);
+        const nameB = getComparableName(b);
+        return nameA.localeCompare(nameB);
+      });
+      nodes.forEach(node => {
+        if (node.children?.length) {
+          sortChildren(node.children);
+        }
+      });
+    };
+
+    sortChildren(rootCategories);
+
+    if (rootOnly) {
+      return rootCategories;
+    }
+
+    // If rootOnly = false, return full tree but still rooted at top level
     return rootCategories;
   }
 

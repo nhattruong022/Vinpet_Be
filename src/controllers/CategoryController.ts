@@ -146,7 +146,30 @@ export class CategoryController {
     try {
       const { rootOnly = false, includeInactive = false } = req.query;
 
-      const tree = await CategoryService.getCategoryTree();
+      const toBoolean = (value: unknown, defaultValue = false): boolean => {
+        if (typeof value === 'boolean') {
+          return value;
+        }
+
+        if (typeof value === 'string') {
+          const normalized = value.toLowerCase();
+          if (normalized === 'true') return true;
+          if (normalized === 'false') return false;
+          return defaultValue;
+        }
+
+        if (Array.isArray(value)) {
+          if (value.length === 0) return defaultValue;
+          return value.some(item => toBoolean(item, defaultValue));
+        }
+
+        return defaultValue;
+      };
+
+      const tree = await CategoryService.getCategoryTree({
+        rootOnly: toBoolean(rootOnly),
+        includeInactive: toBoolean(includeInactive)
+      });
 
       res.status(200).json({
         success: true,

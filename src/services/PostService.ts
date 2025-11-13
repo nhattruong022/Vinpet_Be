@@ -109,7 +109,18 @@ export class PostService {
       }
 
       if (category) {
-        query.categories = category;
+        if (mongoose.Types.ObjectId.isValid(category)) {
+          query.categories = category;
+        } else {
+          const { Category } = await import('../models/Category');
+          const categoryDoc = await Category.findOne({ slug: category });
+          if (categoryDoc) {
+            query.categories = categoryDoc._id;
+          } else {
+            // If category slug not found, force empty result
+            query.categories = null;
+          }
+        }
       }
 
       if (search) {
