@@ -108,21 +108,8 @@ export class CategoryController {
    * @swagger
    * /api/categories/tree:
    *   get:
-   *     summary: Get category tree structure
+   *     summary: Get category tree structure (full tree with all active categories and submenus)
    *     tags: [Categories]
-   *     parameters:
-   *       - in: query
-   *         name: rootOnly
-   *         schema:
-   *           type: boolean
-   *           default: false
-   *         description: Return only root categories
-   *       - in: query
-   *         name: includeInactive
-   *         schema:
-   *           type: boolean
-   *           default: false
-   *         description: Include inactive categories
    *     responses:
    *       200:
    *         description: Category tree retrieved successfully
@@ -144,9 +131,11 @@ export class CategoryController {
    */
   static async getCategoryTree(req: Request, res: Response): Promise<void> {
     try {
-      const { rootOnly = false, includeInactive = false } = req.query;
-
-      const tree = await CategoryService.getCategoryTree();
+      // Luôn trả về full tree với active categories (bao gồm cả submenu)
+      const tree = await CategoryService.getCategoryTree({
+        rootOnly: false,
+        includeInactive: false
+      });
 
       res.status(200).json({
         success: true,

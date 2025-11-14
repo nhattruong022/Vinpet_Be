@@ -4,6 +4,12 @@ export interface ICategory extends Document {
   name: string;
   slug: string;
   description?: string;
+  name_en?: string;
+  name_vi?: string;
+  name_ko?: string;
+  description_en?: string;
+  description_vi?: string;
+  description_ko?: string;
   parent?: mongoose.Types.ObjectId;
   children?: mongoose.Types.ObjectId[];
   color?: string;
@@ -35,6 +41,36 @@ const categorySchema = new Schema<ICategory>({
     type: String,
     trim: true,
     maxlength: [500, 'Description cannot exceed 500 characters']
+  },
+  name_en: {
+    type: String,
+    trim: true,
+    maxlength: [100, 'English name cannot exceed 100 characters']
+  },
+  name_vi: {
+    type: String,
+    trim: true,
+    maxlength: [100, 'Vietnamese name cannot exceed 100 characters']
+  },
+  name_ko: {
+    type: String,
+    trim: true,
+    maxlength: [100, 'Korean name cannot exceed 100 characters']
+  },
+  description_en: {
+    type: String,
+    trim: true,
+    maxlength: [500, 'English description cannot exceed 500 characters']
+  },
+  description_vi: {
+    type: String,
+    trim: true,
+    maxlength: [500, 'Vietnamese description cannot exceed 500 characters']
+  },
+  description_ko: {
+    type: String,
+    trim: true,
+    maxlength: [500, 'Korean description cannot exceed 500 characters']
   },
   parent: {
     type: Schema.Types.ObjectId,
