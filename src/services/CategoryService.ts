@@ -25,6 +25,8 @@ export interface CategoryCreateData {
   description_en?: string;
   description_vi?: string;
   description_ko?: string;
+  isActive?: boolean;
+  sortOrder?: number;
 }
 
 export interface CategoryUpdateData {
@@ -60,6 +62,19 @@ export class CategoryService {
   }
 
   /**
+   * Generate key from name (snake_case format: about_us)
+   */
+  private static generateKey(name: string): string {
+    return name
+      .toLowerCase()
+      .trim()
+      .replace(/[^a-z0-9\s_]/g, '')
+      .replace(/\s+/g, '_')
+      .replace(/_+/g, '_')
+      .replace(/^_|_$/g, '');
+  }
+
+  /**
    * Ensure slug is unique
    */
   private static async ensureUniqueSlug(slug: string, excludeId?: string): Promise<string> {
@@ -81,6 +96,30 @@ export class CategoryService {
     }
 
     return uniqueSlug;
+  }
+
+  /**
+   * Ensure key is unique
+   */
+  private static async ensureUniqueKey(key: string, excludeId?: string): Promise<string> {
+    let uniqueKey = key;
+    let counter = 1;
+
+    while (true) {
+      const existingCategory = await Category.findOne({
+        key: uniqueKey,
+        ...(excludeId && { _id: { $ne: excludeId } })
+      });
+
+      if (!existingCategory) {
+        break;
+      }
+
+      uniqueKey = `${key}_${counter}`;
+      counter++;
+    }
+
+    return uniqueKey;
   }
 
   /**
@@ -188,6 +227,7 @@ export class CategoryService {
     }
 
     const slug = await this.ensureUniqueSlug(this.generateSlug(baseName));
+    const key = await this.ensureUniqueKey(this.generateKey(baseName));
 
     const categoryData = {
       ...data,
@@ -197,7 +237,10 @@ export class CategoryService {
         ?? data.description_vi
         ?? data.description_ko,
       slug,
-      parent: data.parent ? new mongoose.Types.ObjectId(data.parent) : null
+      key,
+      parent: data.parent ? new mongoose.Types.ObjectId(data.parent) : null,
+      isActive: data.isActive !== undefined ? data.isActive : true,
+      sortOrder: data.sortOrder !== undefined ? data.sortOrder : 0
     };
 
     const category = new Category(categoryData);
@@ -239,7 +282,9 @@ export class CategoryService {
     if (baseName) {
       updateData.name = baseName;
       const slug = await this.ensureUniqueSlug(this.generateSlug(baseName), id);
+      const key = await this.ensureUniqueKey(this.generateKey(baseName), id);
       updateData.slug = slug;
+      updateData.key = key;
     }
 
     if (data.description !== undefined) {

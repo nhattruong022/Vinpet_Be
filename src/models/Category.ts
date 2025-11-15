@@ -3,6 +3,7 @@ import mongoose, { Document, Schema } from 'mongoose';
 export interface ICategory extends Document {
   name: string;
   slug: string;
+  key: string;
   description?: string;
   name_en?: string;
   name_vi?: string;
@@ -36,6 +37,14 @@ const categorySchema = new Schema<ICategory>({
     trim: true,
     lowercase: true,
     match: [/^[a-z0-9-]+$/, 'Slug can only contain lowercase letters, numbers, and hyphens']
+  },
+  key: {
+    type: String,
+    required: [true, 'Category key is required'],
+    unique: true,
+    trim: true,
+    lowercase: true,
+    match: [/^[a-z0-9_]+$/, 'Key can only contain lowercase letters, numbers, and underscores']
   },
   description: {
     type: String,
@@ -113,6 +122,7 @@ const categorySchema = new Schema<ICategory>({
 
 // Indexes
 categorySchema.index({ slug: 1 });
+categorySchema.index({ key: 1 });
 categorySchema.index({ parent: 1 });
 categorySchema.index({ isActive: 1 });
 categorySchema.index({ sortOrder: 1 });

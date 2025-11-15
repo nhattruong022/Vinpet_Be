@@ -192,22 +192,54 @@ const swaggerOptions = {
               type: 'string',
               description: 'Category name'
             },
+            name_en: {
+              type: 'string',
+              description: 'Category name in English'
+            },
+            name_vi: {
+              type: 'string',
+              description: 'Category name in Vietnamese'
+            },
+            name_ko: {
+              type: 'string',
+              description: 'Category name in Korean'
+            },
             slug: {
               type: 'string',
               description: 'Category slug'
+            },
+            key: {
+              type: 'string',
+              description: 'Category key (for frontend, snake_case format: about_us)'
             },
             description: {
               type: 'string',
               description: 'Category description'
             },
+            description_en: {
+              type: 'string',
+              description: 'Category description in English'
+            },
+            description_vi: {
+              type: 'string',
+              description: 'Category description in Vietnamese'
+            },
+            description_ko: {
+              type: 'string',
+              description: 'Category description in Korean'
+            },
             parent: {
               type: 'string',
               description: 'Parent category ID'
             },
+            isActive: {
+              type: 'boolean',
+              description: 'Category active status'
+            },
             status: {
               type: 'string',
               enum: ['active', 'inactive'],
-              description: 'Category status'
+              description: 'Category status (deprecated, use isActive)'
             },
             metaTitle: {
               type: 'string',
@@ -220,6 +252,15 @@ const swaggerOptions = {
             featuredImage: {
               type: 'string',
               description: 'Featured image URL'
+            },
+            color: {
+              type: 'string',
+              pattern: '^#[0-9A-Fa-f]{6}$',
+              description: 'Category color (hex format)'
+            },
+            icon: {
+              type: 'string',
+              description: 'Category icon'
             },
             sortOrder: {
               type: 'integer',
@@ -264,22 +305,49 @@ const swaggerOptions = {
               type: 'string',
               description: 'Category name'
             },
+            name_en: {
+              type: 'string',
+              description: 'Category name in English'
+            },
+            name_vi: {
+              type: 'string',
+              description: 'Category name in Vietnamese'
+            },
+            name_ko: {
+              type: 'string',
+              description: 'Category name in Korean'
+            },
             slug: {
               type: 'string',
               description: 'Category slug'
+            },
+            key: {
+              type: 'string',
+              description: 'Category key (for frontend, snake_case format: about_us)'
             },
             description: {
               type: 'string',
               description: 'Category description'
             },
+            description_en: {
+              type: 'string',
+              description: 'Category description in English'
+            },
+            description_vi: {
+              type: 'string',
+              description: 'Category description in Vietnamese'
+            },
+            description_ko: {
+              type: 'string',
+              description: 'Category description in Korean'
+            },
             parent: {
               type: 'string',
               description: 'Parent category ID'
             },
-            status: {
-              type: 'string',
-              enum: ['active', 'inactive'],
-              description: 'Category status'
+            isActive: {
+              type: 'boolean',
+              description: 'Category active status'
             },
             sortOrder: {
               type: 'integer',
@@ -295,6 +363,20 @@ const swaggerOptions = {
             postsCount: {
               type: 'integer',
               description: 'Number of posts in this category'
+            },
+            createdAt: {
+              type: 'string',
+              format: 'date-time',
+              description: 'Category creation date'
+            },
+            updatedAt: {
+              type: 'string',
+              format: 'date-time',
+              description: 'Category last update date'
+            },
+            __v: {
+              type: 'integer',
+              description: 'Mongoose version key'
             }
           }
         },
