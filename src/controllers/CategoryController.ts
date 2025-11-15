@@ -85,10 +85,10 @@ export class CategoryController {
         search: search as string,
         parent: parent as string
       };
-      
+
       if (status === 'active') filters.isActive = true;
       if (status === 'inactive') filters.isActive = false;
-      
+
       const result = await CategoryService.getCategories(filters);
 
       res.status(200).json({
@@ -367,7 +367,18 @@ export class CategoryController {
    * @swagger
    * /api/categories:
    *   post:
-   *     summary: Create a new category
+   *     summary: Create a new category (menu item)
+   *     description: |
+   *       Creates a new category with automatic generation of:
+   *       - **name**: Set from menuName
+   *       - **slug**: Auto-generated from menuName (URL-friendly, hyphen-separated)
+   *       - **key**: Auto-generated from menuName (snake_case format for frontend use)
+   *       - **name_vi, name_en, name_ko**: All set to menuName value
+   *       
+   *       Example: menuName "About Us" will generate:
+   *       - name: "About Us"
+   *       - slug: "about-us"
+   *       - key: "about_us"
    *     tags: [Categories]
    *     requestBody:
    *       required: true
@@ -376,26 +387,32 @@ export class CategoryController {
    *           schema:
    *             type: object
    *             required:
-   *               - name
-   *               - slug
+   *               - menuName
    *             properties:
-   *               name:
+   *               menuName:
    *                 type: string
-   *                 description: Category name
-   *               slug:
-   *                 type: string
-   *                 description: Category slug (URL-friendly)
+   *                 example: "About Us"
+   *                 description: |
+   *                   Category menu name (required).
+   *                   This will be used to generate:
+   *                   - name field
+   *                   - slug (about-us)
+   *                   - key (about_us) for frontend
+   *                   - name_vi, name_en, name_ko (all set to this value)
    *               description:
    *                 type: string
+   *                 example: "Introduction to our company"
    *                 description: Category description
    *               parent:
    *                 type: string
-   *                 description: Parent category ID
+   *                 example: "6912d9282df5d3d5dd5a0d8d"
+   *                 description: Parent category ID (for creating child category/submenu). Leave empty for root category.
    *               status:
    *                 type: string
    *                 enum: [active, inactive]
    *                 default: active
-   *                 description: Category status
+   *                 example: "active"
+   *                 description: Category status (will be converted to isActive internally)
    *               metaTitle:
    *                 type: string
    *                 description: SEO meta title
@@ -405,10 +422,46 @@ export class CategoryController {
    *               featuredImage:
    *                 type: string
    *                 description: Featured image URL
+   *               color:
+   *                 type: string
+   *                 pattern: '^#[0-9A-Fa-f]{6}$'
+   *                 example: "#FF5733"
+   *                 description: Category color (hex format)
+   *               icon:
+   *                 type: string
+   *                 example: "icon-about"
+   *                 description: Category icon
    *               sortOrder:
    *                 type: integer
    *                 default: 0
-   *                 description: Sort order
+   *                 example: 10
+   *                 description: Sort order for category display (lower numbers appear first)
+   *           examples:
+   *             simple:
+   *               summary: Simple category
+   *               value:
+   *                 menuName: "About Us"
+   *                 status: "active"
+   *             withParent:
+   *               summary: Child category
+   *               value:
+   *                 menuName: "Company Overview"
+   *                 description: "Overview of the company"
+   *                 parent: "6912d9282df5d3d5dd5a0d8d"
+   *                 status: "active"
+   *                 sortOrder: 20
+   *             full:
+   *               summary: Full category with all fields
+   *               value:
+   *                 menuName: "Products"
+   *                 description: "Our product catalog"
+   *                 parent: "6912d9282df5d3d5dd5a0d8d"
+   *                 status: "active"
+   *                 sortOrder: 50
+   *                 metaTitle: "Products - Our Catalog"
+   *                 metaDescription: "Browse our complete product catalog"
+   *                 color: "#FF5733"
+   *                 icon: "icon-products"
    *     responses:
    *       201:
    *         description: Category created successfully
@@ -419,14 +472,59 @@ export class CategoryController {
    *               properties:
    *                 success:
    *                   type: boolean
+   *                   example: true
    *                 message:
    *                   type: string
+   *                   example: "Category created successfully"
    *                 data:
    *                   $ref: '#/components/schemas/Category'
+   *             examples:
+   *               success:
+   *                 summary: Successful creation
+   *                 value:
+   *                   success: true
+   *                   message: "Category created successfully"
+   *                   data:
+   *                     _id: "6912d9292df5d3d5dd5a0d92"
+   *                     name: "About Us"
+   *                     slug: "about-us"
+   *                     key: "about_us"
+   *                     name_vi: "About Us"
+   *                     name_en: "About Us"
+   *                     name_ko: "About Us"
+   *                     description: "Introduction to our company"
+   *                     isActive: true
+   *                     sortOrder: 10
+   *                     parent: null
+   *                     children: []
+   *                     createdAt: "2025-01-11T10:00:00.000Z"
+   *                     updatedAt: "2025-01-11T10:00:00.000Z"
    *       400:
-   *         description: Bad request
+   *         description: Bad request (missing required fields)
+   *         content:
+   *           application/json:
+   *             schema:
+   *               type: object
+   *               properties:
+   *                 success:
+   *                   type: boolean
+   *                   example: false
+   *                 message:
+   *                   type: string
+   *                   example: "menuName is required"
    *       409:
-   *         description: Category with this slug already exists
+   *         description: Category with this slug or key already exists
+   *         content:
+   *           application/json:
+   *             schema:
+   *               type: object
+   *               properties:
+   *                 success:
+   *                   type: boolean
+   *                   example: false
+   *                 message:
+   *                   type: string
+   *                   example: "Category with this slug already exists"
    *       500:
    *         description: Internal server error
    */
@@ -434,13 +532,25 @@ export class CategoryController {
     try {
       const categoryData = req.body;
 
-      // Validate required fields
-      if (!categoryData.name || !categoryData.slug) {
+      // Validate required fields - menuName is required, slug will be auto-generated if not provided
+      if (!categoryData.menuName) {
         res.status(400).json({
           success: false,
-          message: 'Name and slug are required'
+          message: 'menuName is required'
         });
         return;
+      }
+
+      // Map menuName to name for service
+      if (categoryData.menuName) {
+        categoryData.name = categoryData.menuName;
+        delete categoryData.menuName;
+      }
+
+      // Convert status to isActive if provided
+      if (categoryData.status !== undefined) {
+        categoryData.isActive = categoryData.status === 'active';
+        delete categoryData.status;
       }
 
       const category = await CategoryService.createCategory(categoryData);
@@ -620,7 +730,7 @@ export class CategoryController {
       }
 
 
-    
+
       const deleted = await CategoryService.deleteCategory(id);
 
       if (!deleted) {
