@@ -45,7 +45,8 @@ export class MediaController {
    * /api/media/upload:
    *   post:
    *     summary: Upload media file
-   *     tags: [Media]
+   *     tags:
+   *       - Media
    *     requestBody:
    *       required: true
    *       content:
@@ -56,50 +57,16 @@ export class MediaController {
    *               file:
    *                 type: string
    *                 format: binary
-   *                 description: Image file to upload
    *               postId:
    *                 type: string
-   *                 description: Post ID to associate with the file (optional)
    *               position:
    *                 type: integer
-   *                 description: Position of the image in the post (optional, default 0)
    *     responses:
-   *       200:
+   *       '200':
    *         description: File uploaded successfully
-   *         content:
-   *           application/json:
-   *             schema:
-   *               type: object
-   *               properties:
-   *                 success:
-   *                   type: boolean
-   *                 message:
-   *                   type: string
-   *                 data:
-   *                   type: object
-   *                   properties:
-   *                     id:
-   *                       type: string
-   *                     filename:
-   *                       type: string
-   *                     originalName:
-   *                       type: string
-   *                     mimetype:
-   *                       type: string
-   *                     size:
-   *                       type: integer
-   *                     base64:
-   *                       type: string
-   *                       description: Base64 encoded image data
-   *                     postId:
-   *                       type: string
-   *                       description: Associated post ID
-   *                     position:
-   *                       type: integer
-   *                       description: Position of the image in the post
-   *       400:
+   *       '400':
    *         description: Bad request
-   *       500:
+   *       '500':
    *         description: Internal server error
    */
   static async uploadFile(req: Request, res: Response): Promise<void> {
@@ -202,7 +169,7 @@ export class MediaController {
    *                       type: string
    *                     base64:
    *                       type: string
-   *                       description: Base64 encoded image data
+   *                       description: "Base64 encoded image data"
    *                     exists:
    *                       type: boolean
    *       404:
@@ -349,16 +316,16 @@ export class MediaController {
    *             properties:
    *               alt:
    *                 type: string
-   *                 description: Alt text for accessibility
+   *                 description: "Alt text for accessibility"
    *               caption:
    *                 type: string
-   *                 description: Image caption
+   *                 description: "Image caption"
    *               position:
    *                 type: integer
-   *                 description: Position of image in post
+   *                 description: "Position of image in post"
    *               title:
    *                 type: string
-   *                 description: Image title
+   *                 description: "Image title"
    *     responses:
    *       200:
    *         description: Media updated successfully
@@ -386,6 +353,7 @@ export class MediaController {
    *         description: Media not found
    *       500:
    *         description: Internal server error
+   */
 
   /**
    * @swagger
