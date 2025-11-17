@@ -137,15 +137,23 @@ export class CategoryController {
         includeInactive: false
       });
 
+      // Nếu không có dữ liệu, trả về 204 No Content
+      if (!tree || tree.length === 0) {
+        res.status(204).send();
+        return;
+      }
+
       res.status(200).json({
         success: true,
         message: 'Category tree retrieved successfully',
-        data: tree
+        returnCode: 200,
+        result: tree
       });
     } catch (error: any) {
       res.status(500).json({
         success: false,
-        message: error.message
+        message: error.message,
+        returnCode: 500
       });
     }
   }
