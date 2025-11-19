@@ -113,12 +113,15 @@ export class MediaController {
         photoData.userId = req.user.id;
       }
 
-      const savedPhoto = await PhotoService.createPhoto(photoData);
-
-      // Convert file to base64
+      // Convert file to base64 and save to database
       const fileBuffer = fs.readFileSync(filePath);
       const base64Data = fileBuffer.toString('base64');
       const base64String = `data:${file.mimetype};base64,${base64Data}`;
+
+      // Add base64 to photoData to save in database
+      photoData.base64 = base64String;
+
+      const savedPhoto = await PhotoService.createPhoto(photoData);
 
       res.status(200).json({
         success: true,

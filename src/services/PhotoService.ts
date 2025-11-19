@@ -78,27 +78,60 @@ export class PhotoService {
       const photosWithBase64 = await Promise.all(
         photos.map(async (photo) => {
           try {
-            // Handle both relative and absolute paths
+            // Priority 1: Use base64 from database if available
+            if (photo.base64) {
+              return {
+                id: photo._id,
+                position: photo.position || 0,
+                postId: photo.postId,
+                image: photo.base64
+              };
+            }
+
+            // Priority 2: Fallback to reading from filesystem if base64 not in database
             let filePath = photo.path;
+            const originalPath = filePath;
+
             // If path is relative, convert to absolute
             if (!path.isAbsolute(filePath)) {
               filePath = path.join(process.cwd(), filePath);
             }
 
-            if (fs.existsSync(filePath)) {
-              const fileBuffer = fs.readFileSync(filePath);
-              const base64Data = fileBuffer.toString('base64');
-              const base64String = `data:${photo.mimetype};base64,${base64Data}`;
+            // Normalize path separators for Windows compatibility
+            filePath = path.normalize(filePath);
 
-              return {
-                id: photo._id,
-                position: photo.position || 0,
-                postId: photo.postId,
-                image: base64String
-              };
+            if (fs.existsSync(filePath)) {
+              try {
+                const fileBuffer = fs.readFileSync(filePath);
+                const base64Data = fileBuffer.toString('base64');
+                const base64String = `data:${photo.mimetype};base64,${base64Data}`;
+
+                // Update database with base64 for future use
+                try {
+                  await Photo.findByIdAndUpdate(photo._id, { base64: base64String }, { new: false });
+                } catch (updateError) {
+                  // Silently fail if update fails, just log
+                  console.warn(`Failed to update base64 for photo ${photo._id}:`, updateError);
+                }
+
+                return {
+                  id: photo._id,
+                  position: photo.position || 0,
+                  postId: photo.postId,
+                  image: base64String
+                };
+              } catch (readError: any) {
+                console.error(`Error reading file ${filePath} for photo ${photo._id}:`, readError.message);
+                return {
+                  id: photo._id,
+                  position: photo.position || 0,
+                  postId: photo.postId,
+                  image: null
+                };
+              }
             } else {
-              // If file doesn't exist, return photo without image
-              console.warn(`File not found: ${filePath}`);
+              // If file doesn't exist and no base64 in DB, return null
+              console.warn(`File not found and no base64 in DB - Photo ID: ${photo._id}, Post ID: ${photo.postId}`);
               return {
                 id: photo._id,
                 position: photo.position || 0,
@@ -107,8 +140,8 @@ export class PhotoService {
               };
             }
           } catch (error) {
-            // If error reading file, return photo without image
-            console.error(`Error reading file for photo ${photo._id}:`, error);
+            // If error, return photo without image
+            console.error(`Error processing photo ${photo._id}:`, error);
             return {
               id: photo._id,
               position: photo.position || 0,

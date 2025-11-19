@@ -715,6 +715,9 @@ export class PostController {
    *                   items:
    *                     type: object
    *                     properties:
+   *                       id:
+   *                         type: string
+   *                         description: Post ID
    *                       title:
    *                         type: string
    *                       description:
@@ -762,9 +765,20 @@ export class PostController {
           let thumbnailImage: string | null = null;
           if (post.images && post.images.length > 0) {
             const thumbnail = post.images.find((img: any) => img.position === 0);
-            if (thumbnail && thumbnail.image) {
-              thumbnailImage = thumbnail.image;
+            if (thumbnail) {
+              if (thumbnail.image) {
+                thumbnailImage = thumbnail.image;
+              } else {
+                // Log when thumbnail exists but image is null
+                console.warn(`Thumbnail image is null for post ${post._id}, photo ID: ${thumbnail.id}`);
+              }
+            } else {
+              // Log when no thumbnail found
+              console.warn(`No thumbnail (position=0) found for post ${post._id}, total images: ${post.images.length}`);
             }
+          } else {
+            // Log when no images at all
+            console.warn(`No images found for post ${post._id}`);
           }
 
           // Create description from excerpt or content
@@ -777,12 +791,20 @@ export class PostController {
               : plainText;
           }
 
-          return {
+          // Build response object - only include thumbnailImage if it has a value
+          const responseItem: any = {
+            id: post._id.toString(),
             title: post.title,
             description: description,
-            thumbnailImage: thumbnailImage,
             createdAt: post.createdAt
           };
+
+          // Only add thumbnailImage field if it has a value (not null)
+          if (thumbnailImage !== null) {
+            responseItem.thumbnailImage = thumbnailImage;
+          }
+
+          return responseItem;
         })
       );
 
