@@ -4,6 +4,8 @@ import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
 import express from 'express';
 import cookieParser from 'cookie-parser';
+import path from 'path';
+import fs from 'fs';
 
 const configureMiddleware = (app: Application): void => {
   // Security middleware
@@ -32,8 +34,18 @@ const configureMiddleware = (app: Application): void => {
   // Cookie parsing middleware
   app.use(cookieParser());
 
+  // Ensure uploads directory exists
+  const uploadsDir = path.join(process.cwd(), 'uploads');
+  const uploadsMediaDir = path.join(uploadsDir, 'media');
+  if (!fs.existsSync(uploadsDir)) {
+    fs.mkdirSync(uploadsDir, { recursive: true });
+  }
+  if (!fs.existsSync(uploadsMediaDir)) {
+    fs.mkdirSync(uploadsMediaDir, { recursive: true });
+  }
+
   // Serve static files for uploads
-  app.use('/uploads', express.static('uploads'));
+  app.use('/uploads', express.static(uploadsDir));
 
   // Request logging
   app.use((req, res, next) => {

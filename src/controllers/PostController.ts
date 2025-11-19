@@ -673,4 +673,139 @@ export class PostController {
       });
     }
   }
+
+  /**
+   * @swagger
+   * /api/blog:
+   *   get:
+   *     summary: Get blog posts list with thumbnail and description
+   *     tags: [Posts]
+   *     parameters:
+   *       - in: query
+   *         name: page
+   *         schema:
+   *           type: integer
+   *           minimum: 1
+   *           default: 1
+   *         description: Page number
+   *       - in: query
+   *         name: limit
+   *         schema:
+   *           type: integer
+   *           minimum: 1
+   *           maximum: 100
+   *           default: 10
+   *         description: Number of posts per page
+   *     responses:
+   *       200:
+   *         description: Blog posts retrieved successfully
+   *         content:
+   *           application/json:
+   *             schema:
+   *               type: object
+   *               properties:
+   *                 success:
+   *                   type: boolean
+   *                 returnCode:
+   *                   type: integer
+   *                 message:
+   *                   type: string
+   *                 result:
+   *                   type: array
+   *                   items:
+   *                     type: object
+   *                     properties:
+   *                       title:
+   *                         type: string
+   *                       description:
+   *                         type: string
+   *                       thumbnailImage:
+   *                         type: string
+   *                         nullable: true
+   *                       createdAt:
+   *                         type: string
+   *                         format: date-time
+   *                 pagination:
+   *                   type: object
+   *                   properties:
+   *                     currentPage:
+   *                       type: integer
+   *                     pageSize:
+   *                       type: integer
+   *                     totalItems:
+   *                       type: integer
+   *                     totalPages:
+   *                       type: integer
+   *       500:
+   *         description: Internal server error
+   */
+  static async getBlogPosts(req: Request, res: Response): Promise<void> {
+    try {
+      const {
+        page = 1,
+        limit = 10
+      } = req.query;
+
+      // Get published posts only
+      const result = await PostService.getPosts({
+        page: parseInt(page as string),
+        limit: parseInt(limit as string),
+        status: 'published',
+        sortBy: 'createdAt',
+        sortOrder: 'desc'
+      });
+
+      // Transform posts to blog format
+      const blogPosts = await Promise.all(
+        result.posts.map(async (post: any) => {
+          // Get thumbnail image (position = 0)
+          let thumbnailImage: string | null = null;
+          if (post.images && post.images.length > 0) {
+            const thumbnail = post.images.find((img: any) => img.position === 0);
+            if (thumbnail && thumbnail.image) {
+              thumbnailImage = thumbnail.image;
+            }
+          }
+
+          // Create description from excerpt or content
+          let description = post.excerpt || '';
+          if (!description && post.content) {
+            // Strip HTML tags and get first 200 characters
+            const plainText = post.content.replace(/<[^>]*>/g, '').trim();
+            description = plainText.length > 200
+              ? plainText.substring(0, 200) + '...'
+              : plainText;
+          }
+
+          return {
+            title: post.title,
+            description: description,
+            thumbnailImage: thumbnailImage,
+            createdAt: post.createdAt
+          };
+        })
+      );
+
+      // Format response according to ApiSuccessResponse with pagination
+      res.status(200).json({
+        success: true,
+        returnCode: 200,
+        message: 'Blog posts retrieved successfully',
+        result: blogPosts,
+        pagination: {
+          currentPage: result.currentPage,
+          pageSize: parseInt(limit as string) || 10,
+          totalItems: result.totalItems,
+          totalPages: result.totalPages
+        }
+      });
+    } catch (error: any) {
+      res.status(500).json({
+        success: false,
+        returnCode: 500,
+        message: error.message,
+        detail: error.stack
+      });
+    }
+  }
 }

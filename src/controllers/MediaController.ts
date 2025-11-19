@@ -5,13 +5,19 @@ import fs from 'fs';
 import mongoose from 'mongoose';
 import { PhotoService } from '../services/PhotoService';
 
+// Get absolute path for uploads directory
+const getUploadDir = () => {
+  const uploadDir = path.join(process.cwd(), 'uploads', 'media');
+  if (!fs.existsSync(uploadDir)) {
+    fs.mkdirSync(uploadDir, { recursive: true });
+  }
+  return uploadDir;
+};
+
 // Configure multer for file uploads
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
-    const uploadDir = 'uploads/media';
-    if (!fs.existsSync(uploadDir)) {
-      fs.mkdirSync(uploadDir, { recursive: true });
-    }
+    const uploadDir = getUploadDir();
     cb(null, uploadDir);
   },
   filename: (req, file, cb) => {
@@ -83,7 +89,7 @@ export class MediaController {
       const postId = req.body.postId || req.query.postId; // Nhận postId từ body hoặc query
       const position = parseInt(req.body.position) || 0; // Nhận position từ body, mặc định là 0
       const fileUrl = `/uploads/media/${file.filename}`;
-      const filePath = path.join('uploads/media', file.filename);
+      const filePath = path.join(getUploadDir(), file.filename);
 
       // Lưu thông tin file vào Photo model
       const photoData: any = {
@@ -190,15 +196,20 @@ export class MediaController {
       }
 
       // Delete the file from filesystem
-      const fs = require('fs');
-      const path = require('path');
-      
-      if (photo.path && fs.existsSync(photo.path)) {
-        try {
-          fs.unlinkSync(photo.path);
-        } catch (fileError) {
-          console.error('Error deleting file:', fileError);
-          // Continue with database deletion even if file deletion fails
+      if (photo.path) {
+        // Handle both relative and absolute paths
+        let filePath = photo.path;
+        if (!path.isAbsolute(filePath)) {
+          filePath = path.join(process.cwd(), filePath);
+        }
+
+        if (fs.existsSync(filePath)) {
+          try {
+            fs.unlinkSync(filePath);
+          } catch (fileError) {
+            console.error('Error deleting file:', fileError);
+            // Continue with database deletion even if file deletion fails
+          }
         }
       }
 

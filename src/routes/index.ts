@@ -4,6 +4,7 @@ import authRoutes from './authRoutes';
 import postRoutes from './postRoutes';
 import mediaRoutes from './mediaRoutes';
 import categoryRoutes from './categoryRoutes';
+import { PostController } from '../controllers/PostController';
 
 
 
@@ -15,6 +16,9 @@ router.use('/users', userRoutes);
 router.use('/posts', postRoutes);
 router.use('/media', mediaRoutes);
 router.use('/categories', categoryRoutes);
+
+// Blog route
+router.get('/blog', PostController.getBlogPosts);
 
 // Root endpoint
 router.get('/', (req, res) => {
@@ -30,6 +34,7 @@ router.get('/', (req, res) => {
         auth: '/api/auth',
         users: '/api/users',
         posts: '/api/posts',
+        blog: '/api/blog',
         media: '/api/media',
         categories: '/api/categories'
       },

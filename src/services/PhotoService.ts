@@ -78,12 +78,18 @@ export class PhotoService {
       const photosWithBase64 = await Promise.all(
         photos.map(async (photo) => {
           try {
-            const filePath = photo.path;
+            // Handle both relative and absolute paths
+            let filePath = photo.path;
+            // If path is relative, convert to absolute
+            if (!path.isAbsolute(filePath)) {
+              filePath = path.join(process.cwd(), filePath);
+            }
+
             if (fs.existsSync(filePath)) {
               const fileBuffer = fs.readFileSync(filePath);
               const base64Data = fileBuffer.toString('base64');
               const base64String = `data:${photo.mimetype};base64,${base64Data}`;
-              
+
               return {
                 id: photo._id,
                 position: photo.position || 0,
@@ -92,6 +98,7 @@ export class PhotoService {
               };
             } else {
               // If file doesn't exist, return photo without image
+              console.warn(`File not found: ${filePath}`);
               return {
                 id: photo._id,
                 position: photo.position || 0,
@@ -101,6 +108,7 @@ export class PhotoService {
             }
           } catch (error) {
             // If error reading file, return photo without image
+            console.error(`Error reading file for photo ${photo._id}:`, error);
             return {
               id: photo._id,
               position: photo.position || 0,
@@ -193,7 +201,7 @@ export class PhotoService {
           }
         }
       ]);
-      
+
       return stats[0] || {
         totalPhotos: 0,
         totalSize: 0,
