@@ -50,18 +50,18 @@ export class PostService {
       const post = await Post.findById(id)
         .populate('author', 'email firstName lastName')
         .populate('categories', 'name slug');
-      
+
       if (!post) {
         return null;
       }
 
       // Get images from photos table
       const images = await PhotoService.getPhotosByPost((post._id as any).toString());
-      
+
       // Find thumbnail image (position = 0) and set featuredImageUrl/featuredImageId
       const postData = post.toObject();
       const thumbnailImage = images.find((img: any) => img.position === 0);
-      
+
       if (thumbnailImage) {
         // Get photo details to get URL
         const thumbnailPhoto = await PhotoService.getPhotoById(thumbnailImage.id.toString());
@@ -70,7 +70,7 @@ export class PostService {
           postData.featuredImageId = thumbnailImage.id.toString();
         }
       }
-      
+
       return {
         ...postData,
         images: images
@@ -147,7 +147,14 @@ export class PostService {
       // Calculate pagination
       const skip = (page - 1) * limit;
       const sort: any = {};
-      sort[sortBy] = sortOrder === 'asc' ? 1 : -1;
+
+      // If sorting by publishDate, also sort by createdAt as secondary sort
+      if (sortBy === 'publishDate') {
+        sort.publishDate = sortOrder === 'asc' ? 1 : -1;
+        sort.createdAt = sortOrder === 'asc' ? 1 : -1; // Secondary sort
+      } else {
+        sort[sortBy] = sortOrder === 'asc' ? 1 : -1;
+      }
 
       // Execute query
       const [posts, totalItems] = await Promise.all([
@@ -165,10 +172,10 @@ export class PostService {
         posts.map(async (post) => {
           const images = await PhotoService.getPhotosByPost((post._id as any).toString());
           const postData = post.toObject();
-          
+
           // Find thumbnail image (position = 0) and set featuredImageUrl/featuredImageId
           const thumbnailImage = images.find((img: any) => img.position === 0);
-          
+
           if (thumbnailImage) {
             // Get photo details to get URL
             const thumbnailPhoto = await PhotoService.getPhotoById(thumbnailImage.id.toString());
@@ -177,7 +184,7 @@ export class PostService {
               postData.featuredImageId = thumbnailImage.id.toString();
             }
           }
-          
+
           return {
             ...postData,
             images: images
@@ -225,7 +232,7 @@ export class PostService {
 
       // Get images from photos table
       const images = await PhotoService.getPhotosByPost((updatedPost._id as any).toString());
-      
+
       return {
         ...updatedPost.toObject(),
         images: images

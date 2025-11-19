@@ -746,12 +746,12 @@ export class PostController {
         pageSize = 10
       } = req.query;
 
-      // Get published posts only
+      // Get published posts only, sorted by newest date first (publishDate preferred, then createdAt)
       const result = await PostService.getPosts({
         page: parseInt(page as string),
         limit: parseInt(pageSize as string),
         status: 'published',
-        sortBy: 'createdAt',
+        sortBy: 'publishDate', // Sort by publishDate first (newest first), fallback to createdAt
         sortOrder: 'desc'
       });
 
