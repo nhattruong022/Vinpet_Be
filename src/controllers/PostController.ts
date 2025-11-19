@@ -689,7 +689,7 @@ export class PostController {
    *           default: 1
    *         description: Page number
    *       - in: query
-   *         name: limit
+   *         name: pageSize
    *         schema:
    *           type: integer
    *           minimum: 1
@@ -743,13 +743,13 @@ export class PostController {
     try {
       const {
         page = 1,
-        limit = 10
+        pageSize = 10
       } = req.query;
 
       // Get published posts only
       const result = await PostService.getPosts({
         page: parseInt(page as string),
-        limit: parseInt(limit as string),
+        limit: parseInt(pageSize as string),
         status: 'published',
         sortBy: 'createdAt',
         sortOrder: 'desc'
@@ -794,7 +794,7 @@ export class PostController {
         result: blogPosts,
         pagination: {
           currentPage: result.currentPage,
-          pageSize: parseInt(limit as string) || 10,
+          pageSize: parseInt(pageSize as string) || 10,
           totalItems: result.totalItems,
           totalPages: result.totalPages
         }
