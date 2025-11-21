@@ -4,7 +4,8 @@ import { ContactController } from '../controllers/ContactController';
 const router = Router();
 
 // Contact routes
-router.post('/', ContactController.sendContactEmail);
+router.post('/', ContactController.createContact);
+router.get('/', ContactController.getContacts);
 
 export default router;
 

@@ -1,12 +1,12 @@
 import { Request, Response } from 'express';
-import { EmailService } from '../services/emailService';
+import { ContactService } from '../services/ContactService';
 
 export class ContactController {
   /**
    * @swagger
    * /api/contact:
    *   post:
-   *     summary: Send contact form email to admin
+   *     summary: Save contact form to database
    *     tags: [Contact]
    *     requestBody:
    *       required: true
@@ -36,13 +36,9 @@ export class ContactController {
    *                 type: string
    *                 description: Nội dung tin nhắn (tùy chọn)
    *                 example: "Tôi muốn tư vấn về sản phẩm"
-   *               subject:
-   *                 type: string
-   *                 description: Tiêu đề email (tùy chọn)
-   *                 example: "Yêu cầu tư vấn"
    *     responses:
-   *       200:
-   *         description: Email sent successfully
+   *       201:
+   *         description: Contact saved successfully
    *         content:
    *           application/json:
    *             schema:
@@ -54,14 +50,33 @@ export class ContactController {
    *                   type: integer
    *                 message:
    *                   type: string
+   *                 data:
+   *                   type: object
+   *                   properties:
+   *                     _id:
+   *                       type: string
+   *                     name:
+   *                       type: string
+   *                     phone:
+   *                       type: string
+   *                     email:
+   *                       type: string
+   *                     message:
+   *                       type: string
+   *                     createdAt:
+   *                       type: string
+   *                       format: date-time
+   *                     updatedAt:
+   *                       type: string
+   *                       format: date-time
    *       400:
    *         description: Bad request - Missing required fields
    *       500:
    *         description: Internal server error
    */
-  static async sendContactEmail(req: Request, res: Response): Promise<void> {
+  static async createContact(req: Request, res: Response): Promise<void> {
     try {
-      const { name, phone, email, message, subject } = req.body;
+      const { name, phone, email, message } = req.body;
 
       // Validate required fields
       if (!name || !phone || !email) {
@@ -96,36 +111,86 @@ export class ContactController {
         return;
       }
 
-      // Send email to admin
-      await EmailService.sendContactEmailToAdmin({
+      // Save contact to database
+      const contact = await ContactService.createContact({
         name: name.trim(),
         phone: cleanPhone,
         email: email.trim().toLowerCase(),
-        message: message?.trim(),
-        subject: subject?.trim()
+        message: message?.trim()
       });
 
-      // Optionally send auto-reply to user
-      try {
-        await EmailService.sendAutoReplyToUser(email.trim().toLowerCase(), name.trim());
-      } catch (autoReplyError) {
-        // Log error but don't fail the request
-        console.warn('Failed to send auto-reply email:', autoReplyError);
-      }
+      res.status(201).json({
+        success: true,
+        returnCode: 201,
+        message: 'Lưu thông tin liên hệ thành công',
+        data: contact
+      });
+    } catch (error: any) {
+      console.error('Error saving contact:', error);
+      res.status(500).json({
+        success: false,
+        returnCode: 500,
+        message: error.message || 'Có lỗi xảy ra khi lưu thông tin. Vui lòng thử lại sau.'
+      });
+    }
+  }
+
+  /**
+   * @swagger
+   * /api/contact:
+   *   get:
+   *     summary: Get all contacts with pagination
+   *     tags: [Contact]
+   *     parameters:
+   *       - in: query
+   *         name: page
+   *         schema:
+   *           type: integer
+   *           minimum: 1
+   *           default: 1
+   *       - in: query
+   *         name: pageSize
+   *         schema:
+   *           type: integer
+   *           minimum: 1
+   *           maximum: 100
+   *           default: 10
+   *       - in: query
+   *         name: search
+   *         schema:
+   *           type: string
+   *     responses:
+   *       200:
+   *         description: Contacts retrieved successfully
+   */
+  static async getContacts(req: Request, res: Response): Promise<void> {
+    try {
+      const {
+        page = 1,
+        pageSize = 10,
+        search
+      } = req.query;
+
+      const result = await ContactService.getContacts({
+        page: parseInt(page as string),
+        pageSize: parseInt(pageSize as string),
+        search: search as string
+      });
 
       res.status(200).json({
         success: true,
         returnCode: 200,
-        message: 'Gửi thông tin liên hệ thành công. Chúng tôi sẽ phản hồi trong thời gian sớm nhất.'
+        message: 'Contacts retrieved successfully',
+        data: result
       });
     } catch (error: any) {
-      console.error('Error sending contact email:', error);
       res.status(500).json({
         success: false,
         returnCode: 500,
-        message: error.message || 'Có lỗi xảy ra khi gửi email. Vui lòng thử lại sau.'
+        message: error.message
       });
     }
   }
+
 }
 

@@ -124,6 +124,7 @@ export class MediaController {
       const savedPhoto = await PhotoService.createPhoto(photoData);
 
       res.status(200).json({
+        
         success: true,
         message: 'File uploaded successfully',
         data: {
