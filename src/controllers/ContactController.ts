@@ -1,5 +1,6 @@
 import { Request, Response } from 'express';
 import { ContactService } from '../services/ContactService';
+import { EmailService } from '../services/emailService';
 
 export class ContactController {
   /**
@@ -118,6 +119,19 @@ export class ContactController {
         email: email.trim().toLowerCase(),
         message: message?.trim()
       });
+
+      // Send email notifications (non-blocking)
+      const contactData = {
+        name: name.trim(),
+        phone: cleanPhone,
+        email: email.trim().toLowerCase(),
+        message: message?.trim()
+      };
+      
+      Promise.all([
+        EmailService.sendContactEmailToAdmin(contactData),
+        EmailService.sendAutoReplyToUser(contactData.email, contactData.name)
+      ]).catch(err => console.error('Error sending contact emails:', err));
 
       res.status(201).json({
         success: true,

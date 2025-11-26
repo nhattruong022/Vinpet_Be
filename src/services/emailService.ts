@@ -1,4 +1,5 @@
 import nodemailer from 'nodemailer';
+import path from 'path';
 
 export interface EmailOptions {
   to: string | string[];
@@ -6,6 +7,7 @@ export interface EmailOptions {
   html?: string;
   text?: string;
   from?: string;
+  attachments?: nodemailer.SendMailOptions['attachments'];
 }
 
 export class EmailService {
@@ -18,7 +20,7 @@ export class EmailService {
     if (!this.transporter) {
       // Get email configuration from environment variables
       // Support multiple naming conventions for flexibility
-      const emailHost = process.env.EMAIL_HOST || process.env.HOST || 'smtp.gmail.com';
+      const emailHost = process.env.EMAIL_HOST || 'smtp.gmail.com';
       // Use EMAIL_PORT first to avoid conflict with server PORT
       const emailPort = parseInt(process.env.EMAIL_PORT || '587');
       const emailSecure = process.env.EMAIL_SECURE === 'true' || emailPort === 465;
@@ -56,7 +58,8 @@ export class EmailService {
         to: Array.isArray(options.to) ? options.to.join(', ') : options.to,
         subject: options.subject,
         text: options.text,
-        html: options.html || options.text
+        html: options.html || options.text,
+        attachments: options.attachments
       };
 
       const info = await transporter.sendMail(mailOptions);
@@ -84,93 +87,69 @@ export class EmailService {
     }
 
     const subject = data.subject || `Liên hệ mới từ ${data.name}`;
+    const logoPath = path.join(__dirname, '../public/image/logoVinpetSolution.png');
     
     const html = `
       <!DOCTYPE html>
       <html>
       <head>
         <meta charset="UTF-8">
-        <style>
-          body {
-            font-family: Arial, sans-serif;
-            line-height: 1.6;
-            color: #333;
-            max-width: 600px;
-            margin: 0 auto;
-            padding: 20px;
-          }
-          .header {
-            background-color: #4a5568;
-            color: white;
-            padding: 20px;
-            border-radius: 5px 5px 0 0;
-          }
-          .content {
-            background-color: #f7fafc;
-            padding: 20px;
-            border: 1px solid #e2e8f0;
-            border-top: none;
-          }
-          .info-row {
-            margin-bottom: 15px;
-            padding: 10px;
-            background-color: white;
-            border-left: 3px solid #4299e1;
-          }
-          .label {
-            font-weight: bold;
-            color: #2d3748;
-            display: inline-block;
-            min-width: 120px;
-          }
-          .value {
-            color: #4a5568;
-          }
-          .message-box {
-            margin-top: 20px;
-            padding: 15px;
-            background-color: white;
-            border-left: 3px solid #48bb78;
-            border-radius: 3px;
-          }
-          .footer {
-            margin-top: 20px;
-            padding-top: 20px;
-            border-top: 1px solid #e2e8f0;
-            text-align: center;
-            color: #718096;
-            font-size: 12px;
-          }
-        </style>
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
       </head>
-      <body>
-        <div class="header">
-          <h2>📧 Liên hệ mới từ website</h2>
-        </div>
-        <div class="content">
-          <div class="info-row">
-            <span class="label">Họ và tên:</span>
-            <span class="value">${data.name}</span>
-          </div>
-          <div class="info-row">
-            <span class="label">Số điện thoại:</span>
-            <span class="value">${data.phone}</span>
-          </div>
-          <div class="info-row">
-            <span class="label">Email:</span>
-            <span class="value">${data.email}</span>
-          </div>
-          ${data.message ? `
-          <div class="message-box">
-            <div class="label" style="display: block; margin-bottom: 10px;">Nội dung tin nhắn:</div>
-            <div class="value" style="white-space: pre-wrap;">${data.message}</div>
-          </div>
-          ` : ''}
-        </div>
-        <div class="footer">
-          <p>Email này được gửi tự động từ hệ thống Vinpet</p>
-          <p>Thời gian: ${new Date().toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' })}</p>
-        </div>
+      <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; margin: 0; padding: 0; background: #f5f5f5;">
+        <table width="100%" cellpadding="0" cellspacing="0" style="max-width: 600px; margin: 0 auto; background: white;">
+          <!-- Header -->
+          <tr>
+            <td style="padding: 15px 20px; border-bottom: 3px solid #1e3a8a;">
+              <table cellpadding="0" cellspacing="0">
+                <tr>
+                  <td style="vertical-align: middle;"><img src="cid:logo" alt="VINPET" style="height: 40px;" /></td>
+                  <td style="vertical-align: middle; padding-left: 12px;"><h2 style="color: #1e3a8a; margin: 0; font-size: 18px;">Liên hệ mới từ website</h2></td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+          <!-- Intro -->
+          <tr>
+            <td style="padding: 20px;">
+              <p style="margin: 0 0 10px;">Xin chào Admin,</p>
+              <p style="margin: 0;">Có một liên hệ mới từ website VINPET. Chi tiết bên dưới:</p>
+            </td>
+          </tr>
+          <!-- Content -->
+          <tr>
+            <td style="padding: 0 20px 20px;">
+              <table width="100%" cellpadding="0" cellspacing="0" style="background: #f9fafb; border-left: 4px solid #3b82f6;">
+                <tr>
+                  <td style="padding: 20px;">
+                    <div style="color: #3b82f6; font-weight: bold; margin-bottom: 15px;">Thông tin liên hệ</div>
+                    <table width="100%" cellpadding="0" cellspacing="0">
+                      <tr><td style="padding: 8px 0; color: #6b7280; width: 110px;">Họ và tên:</td><td style="padding: 8px 0;"><strong>${data.name}</strong></td></tr>
+                      <tr><td style="padding: 8px 0; color: #6b7280;">Số điện thoại:</td><td style="padding: 8px 0;">${data.phone}</td></tr>
+                      <tr><td style="padding: 8px 0; color: #6b7280;">Email:</td><td style="padding: 8px 0;">${data.email}</td></tr>
+                    </table>
+                    ${data.message ? `
+                    <table width="100%" cellpadding="0" cellspacing="0" style="background: white; border-left: 3px solid #3b82f6; margin-top: 15px;">
+                      <tr>
+                        <td style="padding: 15px;">
+                          <strong>Nội dung tin nhắn:</strong><br/>
+                          <span style="white-space: pre-wrap;">${data.message}</span>
+                        </td>
+                      </tr>
+                    </table>
+                    ` : ''}
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+          <!-- Footer -->
+          <tr>
+            <td style="padding: 15px 20px; text-align: center; color: #9ca3af; font-size: 12px; border-top: 1px solid #e5e7eb;">
+              Email tự động từ VINPET • ${new Date().toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' })}
+            </td>
+          </tr>
+        </table>
       </body>
       </html>
     `;
@@ -190,7 +169,12 @@ Thời gian: ${new Date().toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh'
       to: adminEmail,
       subject: subject,
       html: html,
-      text: text
+      text: text,
+      attachments: [{
+        filename: 'logo.png',
+        path: logoPath,
+        cid: 'logo'
+      }]
     });
   }
 
@@ -198,54 +182,34 @@ Thời gian: ${new Date().toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh'
    * Send auto-reply email to user
    */
   static async sendAutoReplyToUser(userEmail: string, userName: string): Promise<void> {
+    const logoPath = path.join(__dirname, '../public/image/logoVinpetSolution.png');
+    
     const html = `
       <!DOCTYPE html>
       <html>
       <head>
         <meta charset="UTF-8">
         <style>
-          body {
-            font-family: Arial, sans-serif;
-            line-height: 1.6;
-            color: #333;
-            max-width: 600px;
-            margin: 0 auto;
-            padding: 20px;
-          }
-          .header {
-            background-color: #4299e1;
-            color: white;
-            padding: 20px;
-            border-radius: 5px 5px 0 0;
-            text-align: center;
-          }
-          .content {
-            background-color: #f7fafc;
-            padding: 30px;
-            border: 1px solid #e2e8f0;
-            border-top: none;
-          }
-          .footer {
-            margin-top: 20px;
-            padding-top: 20px;
-            border-top: 1px solid #e2e8f0;
-            text-align: center;
-            color: #718096;
-            font-size: 12px;
-          }
+          body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; }
+          .header { background: white; padding: 20px; text-align: center; border-bottom: 3px solid #1e3a8a; }
+          .header img { height: 50px; margin-bottom: 10px; }
+          .header h2 { color: #1e3a8a; margin: 0; }
+          .content { padding: 25px 20px; background: #f9fafb; border-left: 4px solid #3b82f6; margin: 20px; }
+          .footer { padding: 15px; text-align: center; color: #9ca3af; font-size: 12px; border-top: 1px solid #e5e7eb; }
         </style>
       </head>
       <body>
         <div class="header">
-          <h2>✅ Cảm ơn bạn đã liên hệ!</h2>
+          <img src="cid:logo" alt="VINPET" />
+          <h2>Cảm ơn bạn đã liên hệ!</h2>
         </div>
         <div class="content">
           <p>Xin chào <strong>${userName}</strong>,</p>
-          <p>Chúng tôi đã nhận được thông tin liên hệ của bạn. Đội ngũ của chúng tôi sẽ phản hồi trong thời gian sớm nhất.</p>
-          <p>Trân trọng,<br><strong>Đội ngũ Vinpet</strong></p>
+          <p>Chúng tôi đã nhận được thông tin liên hệ của bạn. Đội ngũ VINPET sẽ phản hồi trong thời gian sớm nhất.</p>
+          <p>Trân trọng,<br/><strong>Đội ngũ VINPET</strong></p>
         </div>
         <div class="footer">
-          <p>Email này được gửi tự động từ hệ thống Vinpet</p>
+          Email tự động từ VINPET
         </div>
       </body>
       </html>
@@ -266,7 +230,13 @@ Trân trọng,
       to: userEmail,
       subject: 'Cảm ơn bạn đã liên hệ với Vinpet',
       html: html,
-      text: text
+      text: text,
+      attachments: [{
+        filename: 'logo.png',
+        path: logoPath,
+        
+        cid: 'logo'
+      }]
     });
   }
 }
