@@ -5,107 +5,6 @@ import mongoose from 'mongoose';
 export class CategoryController {
   /**
    * @swagger
-   * /api/categories:
-   *   get:
-   *     summary: Get all categories
-   *     tags: [Categories]
-   *     parameters:
-   *       - in: query
-   *         name: page
-   *         schema:
-   *           type: integer
-   *           minimum: 1
-   *           default: 1
-   *         description: Page number
-   *       - in: query
-   *         name: limit
-   *         schema:
-   *           type: integer
-   *           minimum: 1
-   *           maximum: 100
-   *           default: 10
-   *         description: Number of categories per page
-   *       - in: query
-   *         name: search
-   *         schema:
-   *           type: string
-   *         description: Search in category name and description
-   *       - in: query
-   *         name: parent
-   *         schema:
-   *           type: string
-   *         description: Filter by parent category ID
-   *       - in: query
-   *         name: status
-   *         schema:
-   *           type: string
-   *           enum: [active, inactive]
-   *         description: Filter by category status
-   *     responses:
-   *       200:
-   *         description: Categories retrieved successfully
-   *         content:
-   *           application/json:
-   *             schema:
-   *               type: object
-   *               properties:
-   *                 success:
-   *                   type: boolean
-   *                 message:
-   *                   type: string
-   *                 data:
-   *                   type: object
-   *                   properties:
-   *                     categories:
-   *                       type: array
-   *                       items:
-   *                         $ref: '#/components/schemas/Category'
-   *                     totalItems:
-   *                       type: integer
-   *                     totalPages:
-   *                       type: integer
-   *                     currentPage:
-   *                       type: integer
-   *       500:
-   *         description: Internal server error
-   */
-  static async getCategories(req: Request, res: Response): Promise<void> {
-    try {
-      const {
-        page = 1,
-        limit = 10,
-        search,
-        parent,
-        status
-      } = req.query;
-
-      const filters: any = {
-        page: parseInt(page as string),
-        limit: parseInt(limit as string),
-        search: search as string,
-        parent: parent as string
-      };
-
-      if (status === 'active') filters.isActive = true;
-      if (status === 'inactive') filters.isActive = false;
-
-      const result = await CategoryService.getCategories(filters);
-
-      res.status(200).json({
-        success: true,
-        message: 'Categories retrieved successfully',
-        data: result
-      });
-    } catch (error: any) {
-      res.status(500).json({
-        success: false,
-        message: error.message
-      });
-    }
-  }
-
-  /**
-   * @swagger
    * /api/categories/tree:
    *   get:
    *     summary: Get category tree structure (full tree with all active categories and submenus)
@@ -137,157 +36,33 @@ export class CategoryController {
         includeInactive: false
       });
 
+      // Nếu không có dữ liệu, trả về 204 No Content
+      if (!tree || tree.length === 0) {
+        res.status(204).send();
+        return;
+      }
+
       res.status(200).json({
         success: true,
         message: 'Category tree retrieved successfully',
-        data: tree
+        returnCode: 200,
+        result: tree
       });
     } catch (error: any) {
       res.status(500).json({
         success: false,
-        message: error.message
+        message: error.message,
+        returnCode: 500
       });
     }
   }
 
   /**
    * @swagger
-   * /api/categories/stats:
+   * /api/categories/{id}/posts:
    *   get:
-   *     summary: Get category statistics
-   *     tags: [Categories]
-   *     responses:
-   *       200:
-   *         description: Category statistics retrieved successfully
-   *         content:
-   *           application/json:
-   *             schema:
-   *               type: object
-   *               properties:
-   *                 success:
-   *                   type: boolean
-   *                 message:
-   *                   type: string
-   *                 data:
-   *                   type: object
-   *                   properties:
-   *                     totalCategories:
-   *                       type: integer
-   *                     activeCategories:
-   *                       type: integer
-   *                     inactiveCategories:
-   *                       type: integer
-   *                     rootCategories:
-   *                       type: integer
-   *                     categoriesWithPosts:
-   *                       type: integer
-   *                     averagePostsPerCategory:
-   *                       type: number
-   *       500:
-   *         description: Internal server error
-   */
-  static async getCategoryStats(req: Request, res: Response): Promise<void> {
-    try {
-      const stats = await CategoryService.getCategoryStats();
-
-      res.status(200).json({
-        success: true,
-        message: 'Category statistics retrieved successfully',
-        data: stats
-      });
-    } catch (error: any) {
-      res.status(500).json({
-        success: false,
-        message: error.message
-      });
-    }
-  }
-
-  /**
-   * @swagger
-   * /api/categories/slug/{slug}:
-   *   get:
-   *     summary: Get category by slug
-   *     tags: [Categories]
-   *     parameters:
-   *       - in: path
-   *         name: slug
-   *         required: true
-   *         schema:
-   *           type: string
-   *         description: Category slug
-   *       - in: query
-   *         name: includePosts
-   *         schema:
-   *           type: boolean
-   *           default: false
-   *         description: Include posts in response
-   *       - in: query
-   *         name: postsLimit
-   *         schema:
-   *           type: integer
-   *           default: 10
-   *         description: Number of posts to include
-   *     responses:
-   *       200:
-   *         description: Category retrieved successfully
-   *         content:
-   *           application/json:
-   *             schema:
-   *               type: object
-   *               properties:
-   *                 success:
-   *                   type: boolean
-   *                 message:
-   *                   type: string
-   *                 data:
-   *                   $ref: '#/components/schemas/Category'
-   *       404:
-   *         description: Category not found
-   *       500:
-   *         description: Internal server error
-   */
-  static async getCategoryBySlug(req: Request, res: Response): Promise<void> {
-    try {
-      const { slug } = req.params;
-      const { includePosts = false, postsLimit = 10 } = req.query;
-
-      if (!slug) {
-        res.status(400).json({
-          success: false,
-          message: 'Slug is required'
-        });
-        return;
-      }
-
-      const category = await CategoryService.getCategoryBySlug(slug);
-
-      if (!category) {
-        res.status(404).json({
-          success: false,
-          message: 'Category not found'
-        });
-        return;
-      }
-
-      res.status(200).json({
-        success: true,
-        message: 'Category retrieved successfully',
-        data: category
-      });
-    } catch (error: any) {
-      res.status(500).json({
-        success: false,
-        message: error.message
-      });
-    }
-  }
-
-  /**
-   * @swagger
-   * /api/categories/{id}:
-   *   get:
-   *     summary: Get category by ID
+   *     summary: Get all published posts by category ID (for menu click)
+   *     description: When user clicks on a menu item (category), this API returns all published posts in that category
    *     tags: [Categories]
    *     parameters:
    *       - in: path
@@ -295,22 +70,10 @@ export class CategoryController {
    *         required: true
    *         schema:
    *           type: string
-   *         description: Category ID
-   *       - in: query
-   *         name: includePosts
-   *         schema:
-   *           type: boolean
-   *           default: false
-   *         description: Include posts in response
-   *       - in: query
-   *         name: includeChildren
-   *         schema:
-   *           type: boolean
-   *           default: false
-   *         description: Include child categories
+   *         description: Category ID from menu
    *     responses:
    *       200:
-   *         description: Category retrieved successfully
+   *         description: Posts retrieved successfully
    *         content:
    *           application/json:
    *             schema:
@@ -320,45 +83,124 @@ export class CategoryController {
    *                   type: boolean
    *                 message:
    *                   type: string
-   *                 data:
-   *                   $ref: '#/components/schemas/Category'
+   *                 returnCode:
+   *                   type: integer
+   *                 result:
+   *                   type: object
+   *                   properties:
+   *                     category:
+   *                       type: object
+   *                       properties:
+   *                         _id:
+   *                           type: string
+   *                         name:
+   *                           type: string
+   *                         slug:
+   *                           type: string
+   *                         description:
+   *                           type: string
+   *                     posts:
+   *                       type: array
+   *                       items:
+   *                         allOf:
+   *                           - $ref: '#/components/schemas/Post'
+   *                           - type: object
+   *                             properties:
+   *                               images:
+   *                                 type: array
+   *                                 items:
+   *                                   type: object
+   *                                   properties:
+   *                                     id:
+   *                                       type: string
+   *                                     position:
+   *                                       type: integer
+   *                                     postId:
+   *                                       type: string
+   *                                     image:
+   *                                       type: string
+   *                                       description: Base64 encoded image
+   *       204:
+   *         description: No posts found in this category
    *       404:
    *         description: Category not found
    *       500:
    *         description: Internal server error
    */
-  static async getCategoryById(req: Request, res: Response): Promise<void> {
+  static async getCategoryPosts(req: Request, res: Response): Promise<void> {
     try {
       const { id } = req.params;
-      const { includePosts = false, includeChildren = false } = req.query;
 
       if (!id || !mongoose.Types.ObjectId.isValid(id)) {
         res.status(400).json({
           success: false,
-          message: 'Invalid category ID'
+          message: 'Invalid category ID',
+          returnCode: 400
         });
         return;
       }
 
+      // Check if category exists
       const category = await CategoryService.getCategoryById(id);
-
       if (!category) {
         res.status(404).json({
           success: false,
-          message: 'Category not found'
+          message: 'Category not found',
+          returnCode: 404
         });
         return;
       }
 
+      // Import PostService and PhotoService dynamically to avoid circular dependency
+      const { PostService } = await import('../services/PostService');
+      const { PhotoService } = await import('../services/PhotoService');
+
+      // Get all published posts by category (no pagination)
+      const postsData = await PostService.getPosts({
+        category: id,
+        status: 'published',
+        page: 1,
+        limit: 1000, // Get all posts
+        sortBy: 'publishDate',
+        sortOrder: 'desc'
+      });
+
+      // Return 204 if no posts
+      if (!postsData.posts || postsData.posts.length === 0) {
+        res.status(204).send();
+        return;
+      }
+
+      // Add images to each post
+      const postsWithImages = await Promise.all(
+        postsData.posts.map(async (post: any) => {
+          const images = await PhotoService.getPhotosByPost(post._id.toString());
+          return {
+            ...post,
+            images: images
+          };
+        })
+      );
+
       res.status(200).json({
         success: true,
-        message: 'Category retrieved successfully',
-        data: category
+        message: 'Posts retrieved successfully',
+        returnCode: 200,
+        result: {
+          category: {
+            _id: category._id,
+            name: category.name,
+            slug: category.slug,
+            description: category.description
+          },
+          posts: postsWithImages
+        }
       });
     } catch (error: any) {
       res.status(500).json({
         success: false,
-        message: error.message
+        message: error.message,
+        returnCode: 500
       });
     }
   }

@@ -4,6 +4,8 @@ import authRoutes from './authRoutes';
 import postRoutes from './postRoutes';
 import mediaRoutes from './mediaRoutes';
 import categoryRoutes from './categoryRoutes';
+import contactRoutes from './contactRoutes';
+import { PostController } from '../controllers/PostController';
 
 
 
@@ -15,6 +17,10 @@ router.use('/users', userRoutes);
 router.use('/posts', postRoutes);
 router.use('/media', mediaRoutes);
 router.use('/categories', categoryRoutes);
+router.use('/contact', contactRoutes);
+
+// Blog route
+router.get('/blog', PostController.getBlogPosts);
 
 // Root endpoint
 router.get('/', (req, res) => {
@@ -26,13 +32,15 @@ router.get('/', (req, res) => {
       version: '1.0.0',
       timestamp: new Date().toISOString(),
       clientIP: req.ip,
-      endpoints: {
-        auth: '/api/auth',
-        users: '/api/users',
-        posts: '/api/posts',
-        media: '/api/media',
-        categories: '/api/categories'
-      },
+        endpoints: {
+          auth: '/api/auth',
+          users: '/api/users',
+          posts: '/api/posts',
+          blog: '/api/blog',
+          media: '/api/media',
+          categories: '/api/categories',
+          contact: '/api/contact'
+        },
     },
   });
 });

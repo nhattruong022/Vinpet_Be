@@ -673,4 +673,161 @@ export class PostController {
       });
     }
   }
+
+  /**
+   * @swagger
+   * /api/blog:
+   *   get:
+   *     summary: Get blog posts list with thumbnail and description
+   *     tags: [Posts]
+   *     parameters:
+   *       - in: query
+   *         name: page
+   *         schema:
+   *           type: integer
+   *           minimum: 1
+   *           default: 1
+   *         description: Page number
+   *       - in: query
+   *         name: pageSize
+   *         schema:
+   *           type: integer
+   *           minimum: 1
+   *           maximum: 100
+   *           default: 10
+   *         description: Number of posts per page
+   *     responses:
+   *       200:
+   *         description: Blog posts retrieved successfully
+   *         content:
+   *           application/json:
+   *             schema:
+   *               type: object
+   *               properties:
+   *                 success:
+   *                   type: boolean
+   *                 returnCode:
+   *                   type: integer
+   *                 message:
+   *                   type: string
+   *                 result:
+   *                   type: array
+   *                   items:
+   *                     type: object
+   *                     properties:
+   *                       id:
+   *                         type: string
+   *                         description: Post ID
+   *                       title:
+   *                         type: string
+   *                       description:
+   *                         type: string
+   *                       thumbnailImage:
+   *                         type: string
+   *                         nullable: true
+   *                       createdAt:
+   *                         type: string
+   *                         format: date-time
+   *                 pagination:
+   *                   type: object
+   *                   properties:
+   *                     currentPage:
+   *                       type: integer
+   *                     pageSize:
+   *                       type: integer
+   *                     totalItems:
+   *                       type: integer
+   *                     totalPages:
+   *                       type: integer
+   *       500:
+   *         description: Internal server error
+   */
+  static async getBlogPosts(req: Request, res: Response): Promise<void> {
+    try {
+      const {
+        page = 1,
+        pageSize = 10
+      } = req.query;
+
+      // Get published posts only, sorted by newest date first (publishDate preferred, then createdAt)
+      const result = await PostService.getPosts({
+        page: parseInt(page as string),
+        limit: parseInt(pageSize as string),
+        status: 'published',
+        sortBy: 'publishDate', // Sort by publishDate first (newest first), fallback to createdAt
+        sortOrder: 'desc'
+      });
+
+      // Transform posts to blog format
+      const blogPosts = await Promise.all(
+        result.posts.map(async (post: any) => {
+          // Get thumbnail image (position = 0)
+          let thumbnailImage: string | null = null;
+          if (post.images && post.images.length > 0) {
+            const thumbnail = post.images.find((img: any) => img.position === 0);
+            if (thumbnail) {
+              if (thumbnail.image) {
+                thumbnailImage = thumbnail.image;
+              } else {
+                // Log when thumbnail exists but image is null
+                console.warn(`Thumbnail image is null for post ${post._id}, photo ID: ${thumbnail.id}`);
+              }
+            } else {
+              // Log when no thumbnail found
+              console.warn(`No thumbnail (position=0) found for post ${post._id}, total images: ${post.images.length}`);
+            }
+          } else {
+            // Log when no images at all
+            console.warn(`No images found for post ${post._id}`);
+          }
+
+          // Create description from excerpt or content
+          let description = post.excerpt || '';
+          if (!description && post.content) {
+            // Strip HTML tags and get first 200 characters
+            const plainText = post.content.replace(/<[^>]*>/g, '').trim();
+            description = plainText.length > 200
+              ? plainText.substring(0, 200) + '...'
+              : plainText;
+          }
+
+          // Build response object - only include thumbnailImage if it has a value
+          const responseItem: any = {
+            id: post._id.toString(),
+            title: post.title,
+            description: description,
+            createdAt: post.createdAt
+          };
+
+          // Only add thumbnailImage field if it has a value (not null)
+          if (thumbnailImage !== null) {
+            responseItem.thumbnailImage = thumbnailImage;
+          }
+
+          return responseItem;
+        })
+      );
+
+      // Format response according to ApiSuccessResponse with pagination
+      res.status(200).json({
+        success: true,
+        returnCode: 200,
+        message: 'Blog posts retrieved successfully',
+        result: blogPosts,
+        pagination: {
+          currentPage: result.currentPage,
+          pageSize: parseInt(pageSize as string) || 10,
+          totalItems: result.totalItems,
+          totalPages: result.totalPages
+        }
+      });
+    } catch (error: any) {
+      res.status(500).json({
+        success: false,
+        returnCode: 500,
+        message: error.message,
+        detail: error.stack
+      });
+    }
+  }
 }

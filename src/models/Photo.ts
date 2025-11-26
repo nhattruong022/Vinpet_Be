@@ -7,23 +7,24 @@ export interface IPhoto extends Document {
   size: number;
   url: string;
   path: string;
-  
+  base64?: string; // Base64 encoded image data stored in database
+
   // Metadata
   alt?: string;
   caption?: string;
   position?: number;
-  
+
   // Associations
   postId?: mongoose.Types.ObjectId;
   userId?: mongoose.Types.ObjectId;
-  
+
   // Status
   status: 'active' | 'inactive' | 'deleted';
-  
+
   // SEO
   altText?: string;
   title?: string;
-  
+
   // Timestamps
   createdAt: Date;
   updatedAt: Date;
@@ -55,7 +56,11 @@ const PhotoSchema = new Schema<IPhoto>({
     type: String,
     required: true
   },
-  
+  base64: {
+    type: String,
+    default: null
+  },
+
   // Metadata
   alt: {
     type: String,
@@ -69,7 +74,7 @@ const PhotoSchema = new Schema<IPhoto>({
     type: Number,
     default: 0
   },
-  
+
   // Associations
   postId: {
     type: Schema.Types.ObjectId,
@@ -81,14 +86,14 @@ const PhotoSchema = new Schema<IPhoto>({
     ref: 'User',
     default: null
   },
-  
+
   // Status
   status: {
     type: String,
     enum: ['active', 'inactive', 'deleted'],
     default: 'active'
   },
-  
+
   // SEO
   altText: {
     type: String,
@@ -113,25 +118,25 @@ PhotoSchema.index({ createdAt: -1 });
 PhotoSchema.index({ postId: 1, position: 1 });
 
 // Virtual for file extension
-PhotoSchema.virtual('extension').get(function() {
+PhotoSchema.virtual('extension').get(function () {
   return this.filename.split('.').pop();
 });
 
 // Virtual for file size in human readable format
-PhotoSchema.virtual('sizeFormatted').get(function() {
+PhotoSchema.virtual('sizeFormatted').get(function () {
   const bytes = this.size;
   if (bytes === 0) return '0 Bytes';
-  
+
   const k = 1024;
   const sizes = ['Bytes', 'KB', 'MB', 'GB'];
   const i = Math.floor(Math.log(bytes) / Math.log(k));
-  
+
   return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
 });
 
 
 // Pre-save middleware to generate alt text if not provided
-PhotoSchema.pre('save', function(next) {
+PhotoSchema.pre('save', function (next) {
   if (!this.altText && this.originalName) {
     // Generate alt text from original filename
     this.altText = this.originalName
