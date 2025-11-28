@@ -4,9 +4,9 @@ export interface IPost extends Document {
   title_vi?: string;
   title_en?: string;
   title_ko?: string;
-  content_vi?: string;
-  content_en?: string;
-  content_ko?: string;
+  content_vi?: string; // Markdown format
+  content_en?: string; // Markdown format
+  content_ko?: string; // Markdown format
   excerpt?: string;
   status: 'draft' | 'published' | 'pending' | 'archived' | 'private';
   publishDate?: Date;
@@ -85,13 +85,16 @@ const PostSchema = new Schema<IPost>({
     trim: true
   },
   content_vi: {
-    type: String
+    type: String,
+    description: 'Post content in Vietnamese (Markdown format)'
   },
   content_en: {
-    type: String
+    type: String,
+    description: 'Post content in English (Markdown format)'
   },
   content_ko: {
-    type: String
+    type: String,
+    description: 'Post content in Korean (Markdown format)'
   },
   excerpt: {
     type: String,

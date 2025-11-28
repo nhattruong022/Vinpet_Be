@@ -138,6 +138,14 @@ export class PostController {
    *         schema:
    *           type: string
    *         description: Post ID
+   *       - in: query
+   *         name: locale
+   *         required: false
+   *         schema:
+   *           type: string
+   *           enum: [en, vi, ko]
+   *           default: en
+   *         description: Locale for title and content (en, vi, ko). Default is 'en'
    *     responses:
    *       200:
    *         description: Post retrieved successfully
@@ -148,46 +156,114 @@ export class PostController {
    *               properties:
    *                 success:
    *                   type: boolean
+   *                 returnCode:
+   *                   type: integer
+   *                   example: 200
    *                 message:
    *                   type: string
-   *                 data:
-   *                   $ref: '#/components/schemas/Post'
+   *                 result:
+   *                   type: object
+   *                   properties:
+   *                     id:
+   *                       type: string
+   *                       description: Post ID
+   *                     title:
+   *                       type: string
+   *                       description: Post title based on locale parameter
+   *                     content:
+   *                       type: string
+   *                       description: Post content based on locale parameter (Markdown format)
    *       404:
    *         description: Post not found
+   *         content:
+   *           application/json:
+   *             schema:
+   *               type: object
+   *               properties:
+   *                 success:
+   *                   type: boolean
+   *                 returnCode:
+   *                   type: integer
+   *                   example: 404
+   *                 message:
+   *                   type: string
    *       500:
    *         description: Internal server error
+   *         content:
+   *           application/json:
+   *             schema:
+   *               type: object
+   *               properties:
+   *                 success:
+   *                   type: boolean
+   *                 returnCode:
+   *                   type: integer
+   *                   example: 500
+   *                 message:
+   *                   type: string
+   *                 detail:
+   *                   type: string
+   *                   nullable: true
    */
   static async getPostById(req: Request, res: Response): Promise<void> {
     try {
       const { id } = req.params;
+      const { locale = 'en' } = req.query;
 
       if (!id || !mongoose.Types.ObjectId.isValid(id)) {
-        res.status(400).json({
+        res.status(404).json({
           success: false,
-          message: 'Invalid post ID'
+          returnCode: 404,
+          message: 'Post not found'
         });
         return;
       }
+
+      // Validate locale
+      const validLocales = ['en', 'vi', 'ko'];
+      const selectedLocale = validLocales.includes(locale as string) ? (locale as string) : 'en';
 
       const post = await PostService.getPostById(id);
 
       if (!post) {
         res.status(404).json({
           success: false,
+          returnCode: 404,
           message: 'Post not found'
         });
         return;
       }
 
+      // Lấy title và content theo locale
+      const title = selectedLocale === 'vi'
+        ? (post.title_vi || post.title_en || '')
+        : selectedLocale === 'ko'
+          ? (post.title_ko || post.title_en || '')
+          : (post.title_en || '');
+
+      const content = selectedLocale === 'vi'
+        ? (post.content_vi || post.content_en || '')
+        : selectedLocale === 'ko'
+          ? (post.content_ko || post.content_en || '')
+          : (post.content_en || '');
+
+      // Chỉ trả về 3 field: id, title, content (theo locale)
       res.status(200).json({
         success: true,
+        returnCode: 200,
         message: 'Post retrieved successfully',
-        data: post
+        result: {
+          id: (post as any)._id.toString(),
+          title: title,
+          content: content
+        }
       });
     } catch (error: any) {
       res.status(500).json({
         success: false,
-        message: error.message
+        returnCode: 500,
+        message: error.message,
+        detail: error.stack
       });
     }
   }
@@ -205,16 +281,29 @@ export class PostController {
    *           schema:
    *             type: object
    *             required:
-   *               - title
-   *               - content
    *               - author
    *             properties:
-   *               title:
+   *               title_en:
    *                 type: string
-   *                 description: Post title
-   *               content:
+   *                 description: Post title in English
+   *               title_vi:
    *                 type: string
-   *                 description: Post content
+   *                 description: Post title in Vietnamese
+   *               title_ko:
+   *                 type: string
+   *                 description: Post title in Korean
+   *               content_en:
+   *                 type: string
+   *                 description: Post content in English (Markdown format)
+   *               content_vi:
+   *                 type: string
+   *                 description: Post content in Vietnamese (Markdown format)
+   *               content_ko:
+   *                 type: string
+   *                 description: Post content in Korean (Markdown format)
+   *               author:
+   *                 type: string
+   *                 description: Author ID
    *               excerpt:
    *                 type: string
    *                 description: Post excerpt
@@ -290,11 +379,15 @@ export class PostController {
     try {
       const postData = req.body;
 
-      // Validate required fields
-      if (!postData.title || !postData.content || !postData.author) {
+      // Validate required fields - yêu cầu ít nhất một title và một content
+      const hasTitle = postData.title_en || postData.title_vi || postData.title_ko;
+      const hasContent = postData.content_en || postData.content_vi || postData.content_ko;
+
+      if (!hasTitle || !hasContent || !postData.author) {
         res.status(400).json({
           success: false,
-          message: 'Title, content, and author are required'
+          returnCode: 400,
+          message: 'At least one title (title_en, title_vi, or title_ko), one content (content_en, content_vi, or content_ko), and author are required'
         });
         return;
       }
@@ -303,13 +396,16 @@ export class PostController {
 
       res.status(201).json({
         success: true,
+        returnCode: 201,
         message: 'Post created successfully',
-        data: post
+        result: post
       });
     } catch (error: any) {
       res.status(500).json({
         success: false,
-        message: error.message
+        returnCode: 500,
+        message: error.message,
+        detail: error.stack
       });
     }
   }
@@ -655,7 +751,7 @@ export class PostController {
       }
 
       const preview = PostService.getSeoSnippetPreview({
-        title,
+        title_en: title,
         permalink,
         metaDescription,
         siteName
