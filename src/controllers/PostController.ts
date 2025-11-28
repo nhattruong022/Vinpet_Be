@@ -193,6 +193,24 @@ export class PostController {
    *                       type: string
    *                       format: date-time
    *                       description: Post last updated date
+   *                     images:
+   *                       type: array
+   *                       items:
+   *                         type: object
+   *                         properties:
+   *                           id:
+   *                             type: string
+   *                             description: Image ID
+   *                           position:
+   *                             type: integer
+   *                             description: Image position
+   *                           postId:
+   *                             type: string
+   *                             description: Post ID
+   *                           image:
+   *                             type: string
+   *                             description: Base64 encoded image data
+   *                       description: Post images array
    *       404:
    *         description: Post not found
    *         content:
@@ -285,7 +303,7 @@ export class PostController {
         .replace(/\s+/g, ' ')   // Thay nhiều khoảng trắng liên tiếp bằng một khoảng trắng
         .trim();                // Loại bỏ khoảng trắng đầu và cuối
 
-      // Trả về 8 field: id, title, content (HTML), description, tags, author, createdAt, updatedAt (theo locale)
+      // Trả về 9 field: id, title, content (HTML), description, tags, author, createdAt, updatedAt, images (theo locale)
       res.status(200).json({
         success: true,
         returnCode: 200,
@@ -298,7 +316,8 @@ export class PostController {
           tags: post.tags || [],
           author: 'VINPET',
           createdAt: post.createdAt ? new Date(post.createdAt).toISOString() : new Date().toISOString(),
-          updatedAt: post.updatedAt ? new Date(post.updatedAt).toISOString() : new Date().toISOString()
+          updatedAt: post.updatedAt ? new Date(post.updatedAt).toISOString() : new Date().toISOString(),
+          images: (post as any).images || []
         }
       });
     } catch (error: any) {
