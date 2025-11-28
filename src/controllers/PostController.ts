@@ -176,6 +176,18 @@ export class PostController {
    *                     description:
    *                       type: string
    *                       description: Post description based on locale parameter
+   *                     tags:
+   *                       type: array
+   *                       items:
+   *                         type: string
+   *                       description: Post tags
+   *                     author:
+   *                       type: string
+   *                       description: Post author, default is VINPET
+   *                     updatedAt:
+   *                       type: string
+   *                       format: date-time
+   *                       description: Post last updated date
    *       404:
    *         description: Post not found
    *         content:
@@ -264,7 +276,7 @@ export class PostController {
         .replace(/\s+/g, ' ')   // Thay nhiều khoảng trắng liên tiếp bằng một khoảng trắng
         .trim();                // Loại bỏ khoảng trắng đầu và cuối
 
-      // Trả về 4 field: id, title, content, description (theo locale)
+      // Trả về 7 field: id, title, content, description, tags, author, updatedAt (theo locale)
       res.status(200).json({
         success: true,
         returnCode: 200,
@@ -273,7 +285,10 @@ export class PostController {
           id: (post as any)._id.toString(),
           title: title,
           content: content,
-          description: description
+          description: description,
+          tags: post.tags || [],
+          author: 'VINPET',
+          updatedAt: post.updatedAt ? new Date(post.updatedAt).toISOString() : new Date().toISOString()
         }
       });
     } catch (error: any) {
@@ -341,9 +356,6 @@ export class PostController {
    *               publishDate:
    *                 type: string
    *                 format: date-time
-   *               author:
-   *                 type: string
-   *                 description: Author ID
    *               seoTitle:
    *                 type: string
    *                 description: SEO title
