@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import { PostService } from '../services/PostService';
 import mongoose from 'mongoose';
+import { markdownToHtml } from '../utils/markdown';
 
 export class PostController {
   /**
@@ -172,7 +173,7 @@ export class PostController {
    *                       description: Post title based on locale parameter
    *                     content:
    *                       type: string
-   *                       description: Post content based on locale parameter (Markdown format)
+   *                       description: Post content based on locale parameter (converted from Markdown to HTML)
    *                     description:
    *                       type: string
    *                       description: Post description based on locale parameter
@@ -256,11 +257,15 @@ export class PostController {
           ? (post.title_ko || post.title_en || '')
           : (post.title_en || '');
 
-      const content = selectedLocale === 'vi'
+      // Lấy content markdown theo locale
+      const contentMarkdown = selectedLocale === 'vi'
         ? (post.content_vi || post.content_en || '')
         : selectedLocale === 'ko'
           ? (post.content_ko || post.content_en || '')
           : (post.content_en || '');
+
+      // Convert markdown sang HTML
+      const content = markdownToHtml(contentMarkdown);
 
       let description = selectedLocale === 'vi'
         ? (post.description_vi || post.description_en || '')
@@ -276,7 +281,7 @@ export class PostController {
         .replace(/\s+/g, ' ')   // Thay nhiều khoảng trắng liên tiếp bằng một khoảng trắng
         .trim();                // Loại bỏ khoảng trắng đầu và cuối
 
-      // Trả về 7 field: id, title, content, description, tags, author, updatedAt (theo locale)
+      // Trả về 7 field: id, title, content (HTML), description, tags, author, updatedAt (theo locale)
       res.status(200).json({
         success: true,
         returnCode: 200,
