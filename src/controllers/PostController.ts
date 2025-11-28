@@ -144,8 +144,8 @@ export class PostController {
    *         schema:
    *           type: string
    *           enum: [en, vi, ko]
-   *           default: en
-   *         description: Locale for title and content (en, vi, ko). Default is 'en'
+   *           default: vi
+   *         description: Locale for title and content (en, vi, ko). Default is 'vi'
    *     responses:
    *       200:
    *         description: Post retrieved successfully
@@ -208,7 +208,7 @@ export class PostController {
   static async getPostById(req: Request, res: Response): Promise<void> {
     try {
       const { id } = req.params;
-      const { locale = 'en' } = req.query;
+      const { locale = 'vi' } = req.query;
 
       if (!id || !mongoose.Types.ObjectId.isValid(id)) {
         res.status(404).json({
@@ -221,7 +221,7 @@ export class PostController {
 
       // Validate locale
       const validLocales = ['en', 'vi', 'ko'];
-      const selectedLocale = validLocales.includes(locale as string) ? (locale as string) : 'en';
+      const selectedLocale = validLocales.includes(locale as string) ? (locale as string) : 'vi';
 
       const post = await PostService.getPostById(id);
 
