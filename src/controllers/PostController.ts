@@ -718,10 +718,24 @@ export class PostController {
    *                       id:
    *                         type: string
    *                         description: Post ID
-   *                       title:
+   *                       title_en:
    *                         type: string
-   *                       description:
+   *                         description: Title in English
+   *                       title_vi:
    *                         type: string
+   *                         description: Title in Vietnamese
+   *                       title_ko:
+   *                         type: string
+   *                         description: Title in Korean
+   *                       description_en:
+   *                         type: string
+   *                         description: Description in English
+   *                       description_vi:
+   *                         type: string
+   *                         description: Description in Vietnamese
+   *                       description_ko:
+   *                         type: string
+   *                         description: Description in Korean
    *                       thumbnailImage:
    *                         type: string
    *                         nullable: true
@@ -781,21 +795,29 @@ export class PostController {
             console.warn(`No images found for post ${post._id}`);
           }
 
-          // Create description from excerpt or content
-          let description = post.excerpt || '';
-          if (!description && post.content) {
-            // Strip HTML tags and get first 200 characters
-            const plainText = post.content.replace(/<[^>]*>/g, '').trim();
-            description = plainText.length > 200
-              ? plainText.substring(0, 200) + '...'
-              : plainText;
-          }
+          // Helper function to create description from content
+          const createDescription = (content: string | undefined): string => {
+            if (content) {
+              // Strip HTML tags and get first 200 characters
+              const plainText = content.replace(/<[^>]*>/g, '').trim();
+              return plainText.length > 200
+                ? plainText.substring(0, 200) + '...'
+                : plainText;
+            }
+            return '';
+          };
 
-          // Build response object - only include thumbnailImage if it has a value
+          // Build response object with multilingual fields
           const responseItem: any = {
             id: post._id.toString(),
-            title: post.title,
-            description: description,
+            title_en: post.title_en || '',
+            title_vi: post.title_vi || '',
+            title_ko: post.title_ko || '',
+            // description_en: ưu tiên content_en, nếu không có thì dùng excerpt
+            description_en: createDescription(post.content_en) || post.excerpt || '',
+            // description_vi và description_ko: chỉ dùng content tương ứng
+            description_vi: createDescription(post.content_vi),
+            description_ko: createDescription(post.content_ko),
             createdAt: post.createdAt
           };
 

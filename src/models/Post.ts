@@ -1,8 +1,12 @@
 import mongoose, { Document, Schema } from 'mongoose';
 
 export interface IPost extends Document {
-  title: string;
-  content: string;
+  title_vi?: string;
+  title_en?: string;
+  title_ko?: string;
+  content_vi?: string;
+  content_en?: string;
+  content_ko?: string;
   excerpt?: string;
   status: 'draft' | 'published' | 'pending' | 'archived' | 'private';
   publishDate?: Date;
@@ -68,14 +72,26 @@ export interface IPost extends Document {
 }
 
 const PostSchema = new Schema<IPost>({
-  title: {
+  title_vi: {
     type: String,
-    required: true,
     trim: true
   },
-  content: {
+  title_en: {
     type: String,
-    required: true
+    trim: true
+  },
+  title_ko: {
+    type: String,
+    trim: true
+  },
+  content_vi: {
+    type: String
+  },
+  content_en: {
+    type: String
+  },
+  content_ko: {
+    type: String
   },
   excerpt: {
     type: String,
