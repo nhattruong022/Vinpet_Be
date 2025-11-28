@@ -193,24 +193,6 @@ export class PostController {
    *                       type: string
    *                       format: date-time
    *                       description: Post last updated date
-   *                     images:
-   *                       type: array
-   *                       items:
-   *                         type: object
-   *                         properties:
-   *                           id:
-   *                             type: string
-   *                             description: Image ID
-   *                           position:
-   *                             type: integer
-   *                             description: Image position
-   *                           postId:
-   *                             type: string
-   *                             description: Post ID
-   *                           image:
-   *                             type: string
-   *                             description: Base64 encoded image data
-   *                       description: Post images array
    *       404:
    *         description: Post not found
    *         content:
@@ -280,11 +262,37 @@ export class PostController {
           : (post.title_en || '');
 
       // Lấy content markdown theo locale
-      const contentMarkdown = selectedLocale === 'vi'
+      let contentMarkdown = selectedLocale === 'vi'
         ? (post.content_vi || post.content_en || '')
         : selectedLocale === 'ko'
           ? (post.content_ko || post.content_en || '')
           : (post.content_en || '');
+
+      // Chèn images vào content markdown dưới dạng markdown image syntax
+      const images = (post as any).images || [];
+      if (images.length > 0) {
+        // Sắp xếp images theo position
+        const sortedImages = [...images].sort((a: any, b: any) => (a.position || 0) - (b.position || 0));
+
+        // Chèn images vào cuối content markdown
+        const imageMarkdowns = sortedImages
+          .filter((img: any) => img.image) // Chỉ lấy images có data
+          .map((img: any) => {
+            // Lấy alt text từ photo nếu có, nếu không thì dùng "Image"
+            const altText = img.altText || img.alt || 'Image';
+            return `![${altText}](${img.image})`;
+          });
+
+        if (imageMarkdowns.length > 0) {
+          // Thêm images vào cuối content, cách một dòng trống
+          contentMarkdown = contentMarkdown.trim();
+          if (contentMarkdown) {
+            contentMarkdown += '\n\n' + imageMarkdowns.join('\n\n');
+          } else {
+            contentMarkdown = imageMarkdowns.join('\n\n');
+          }
+        }
+      }
 
       // Convert markdown sang HTML
       const content = markdownToHtml(contentMarkdown);
@@ -303,7 +311,7 @@ export class PostController {
         .replace(/\s+/g, ' ')   // Thay nhiều khoảng trắng liên tiếp bằng một khoảng trắng
         .trim();                // Loại bỏ khoảng trắng đầu và cuối
 
-      // Trả về 9 field: id, title, content (HTML), description, tags, author, createdAt, updatedAt, images (theo locale)
+      // Trả về 8 field: id, title, content (HTML), description, tags, author, createdAt, updatedAt (theo locale)
       res.status(200).json({
         success: true,
         returnCode: 200,
@@ -316,8 +324,7 @@ export class PostController {
           tags: post.tags || [],
           author: 'VINPET',
           createdAt: post.createdAt ? new Date(post.createdAt).toISOString() : new Date().toISOString(),
-          updatedAt: post.updatedAt ? new Date(post.updatedAt).toISOString() : new Date().toISOString(),
-          images: (post as any).images || []
+          updatedAt: post.updatedAt ? new Date(post.updatedAt).toISOString() : new Date().toISOString()
         }
       });
     } catch (error: any) {

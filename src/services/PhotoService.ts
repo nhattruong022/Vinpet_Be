@@ -84,7 +84,9 @@ export class PhotoService {
                 id: photo._id,
                 position: photo.position || 0,
                 postId: photo.postId,
-                image: photo.base64
+                image: photo.base64,
+                altText: photo.altText || photo.alt || '',
+                alt: photo.alt || photo.altText || ''
               };
             }
 
@@ -118,7 +120,9 @@ export class PhotoService {
                   id: photo._id,
                   position: photo.position || 0,
                   postId: photo.postId,
-                  image: base64String
+                  image: base64String,
+                  altText: photo.altText || photo.alt || '',
+                  alt: photo.alt || photo.altText || ''
                 };
               } catch (readError: any) {
                 console.error(`Error reading file ${filePath} for photo ${photo._id}:`, readError.message);
@@ -126,7 +130,9 @@ export class PhotoService {
                   id: photo._id,
                   position: photo.position || 0,
                   postId: photo.postId,
-                  image: null
+                  image: null,
+                  altText: photo.altText || photo.alt || '',
+                  alt: photo.alt || photo.altText || ''
                 };
               }
             } else {
@@ -136,7 +142,9 @@ export class PhotoService {
                 id: photo._id,
                 position: photo.position || 0,
                 postId: photo.postId,
-                image: null
+                image: null,
+                altText: photo.altText || photo.alt || '',
+                alt: photo.alt || photo.altText || ''
               };
             }
           } catch (error) {
@@ -146,7 +154,9 @@ export class PhotoService {
               id: photo._id,
               position: photo.position || 0,
               postId: photo.postId,
-              image: null
+              image: null,
+              altText: photo.altText || photo.alt || '',
+              alt: photo.alt || photo.altText || ''
             };
           }
         })
