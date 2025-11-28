@@ -1,0 +1,17 @@
+{
+  "title_vi": "Giới thiệu Next.js",
+  "title_en": "Introduction to Next.js",
+  "title_ko": "Next.js 소개",
+  "content_vi": "# Giới thiệu Next.js\n\nNext.js là framework React mạnh mẽ cho SSR/SSG và SEO. Framework này giúp bạn xây dựng ứng dụng web hiện đại với hiệu suất cao.",
+  "content_en": "# Introduction to Next.js\n\nNext.js is a powerful React framework for SSR/SSG and SEO. This framework helps you build modern web applications with high performance.",
+  "content_ko": "# Next.js 소개\n\nNext.js는 SSR/SSG 및 SEO를 위한 강력한 React 프레임워크입니다. 이 프레임워크는 높은 성능으로 현대적인 웹 애플리케이션을 구축하는 데 도움이 됩니다.",
+  "description_vi": "Next.js là framework React mạnh mẽ cho SSR/SSG và SEO",
+  "description_en": "Next.js is a powerful React framework for SSR/SSG and SEO",
+  "description_ko": "Next.js는 SSR/SSG 및 SEO를 위한 강력한 React 프레임워크입니다",
+  "tags": [
+    "Next.js",
+    "React",
+    "SEO"
+  ],
+  "status": "published"
+}

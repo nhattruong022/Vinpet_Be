@@ -185,6 +185,10 @@ export class PostController {
    *                     author:
    *                       type: string
    *                       description: Post author, default is VINPET
+   *                     createdAt:
+   *                       type: string
+   *                       format: date-time
+   *                       description: Post creation date
    *                     updatedAt:
    *                       type: string
    *                       format: date-time
@@ -281,7 +285,7 @@ export class PostController {
         .replace(/\s+/g, ' ')   // Thay nhiều khoảng trắng liên tiếp bằng một khoảng trắng
         .trim();                // Loại bỏ khoảng trắng đầu và cuối
 
-      // Trả về 7 field: id, title, content (HTML), description, tags, author, updatedAt (theo locale)
+      // Trả về 8 field: id, title, content (HTML), description, tags, author, createdAt, updatedAt (theo locale)
       res.status(200).json({
         success: true,
         returnCode: 200,
@@ -293,6 +297,7 @@ export class PostController {
           description: description,
           tags: post.tags || [],
           author: 'VINPET',
+          createdAt: post.createdAt ? new Date(post.createdAt).toISOString() : new Date().toISOString(),
           updatedAt: post.updatedAt ? new Date(post.updatedAt).toISOString() : new Date().toISOString()
         }
       });
@@ -318,8 +323,6 @@ export class PostController {
    *         application/json:
    *           schema:
    *             type: object
-   *             required:
-   *               - author
    *             properties:
    *               title_en:
    *                 type: string
@@ -341,7 +344,7 @@ export class PostController {
    *                 description: Post content in Korean (Markdown format)
    *               author:
    *                 type: string
-   *                 description: Author ID
+   *                 description: Author ID (optional, defaults to first user in database if not provided)
    *               description:
    *                 type: string
    *                 description: Post description (deprecated, use description_en, description_vi, description_ko)
@@ -383,19 +386,6 @@ export class PostController {
    *                 items:
    *                   type: string
    *                 description: Post tags
-   *               robotsMeta:
-   *                 type: object
-   *                 properties:
-   *                   index:
-   *                     type: boolean
-   *                   nofollow:
-   *                     type: boolean
-   *                   noimageindex:
-   *                     type: boolean
-   *                   noarchive:
-   *                     type: boolean
-   *                   nosnippet:
-   *                     type: boolean
    *               canonicalUrl:
    *                 type: string
    *               breadcrumbTitle:
@@ -427,16 +417,33 @@ export class PostController {
       const hasTitle = postData.title_en || postData.title_vi || postData.title_ko;
       const hasContent = postData.content_en || postData.content_vi || postData.content_ko;
 
-      if (!hasTitle || !hasContent || !postData.author) {
+      if (!hasTitle || !hasContent) {
         res.status(400).json({
           success: false,
           returnCode: 400,
-          message: 'At least one title (title_en, title_vi, or title_ko), one content (content_en, content_vi, or content_ko), and author are required'
+          message: 'At least one title (title_en, title_vi, or title_ko) and one content (content_en, content_vi, or content_ko) are required'
         });
         return;
       }
 
-      const post = await PostService.createPost(postData, postData.author);
+      // Set default author if not provided
+      let authorId = postData.author;
+      if (!authorId) {
+        // Tìm user đầu tiên trong database làm author mặc định
+        const { User } = await import('../models/User');
+        const defaultUser = await User.findOne();
+        if (!defaultUser) {
+          res.status(400).json({
+            success: false,
+            returnCode: 400,
+            message: 'No default author found. Please provide an author ID or create a user first.'
+          });
+          return;
+        }
+        authorId = (defaultUser as any)._id.toString();
+      }
+
+      const post = await PostService.createPost(postData, authorId);
 
       res.status(201).json({
         success: true,
