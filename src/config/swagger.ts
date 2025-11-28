@@ -38,9 +38,21 @@ const swaggerOptions = {
               type: 'string',
               description: 'Post content'
             },
-            excerpt: {
+            description: {
               type: 'string',
-              description: 'Post excerpt'
+              description: 'Post description'
+            },
+            description_en: {
+              type: 'string',
+              description: 'Post description in English'
+            },
+            description_vi: {
+              type: 'string',
+              description: 'Post description in Vietnamese'
+            },
+            description_ko: {
+              type: 'string',
+              description: 'Post description in Korean'
             },
             status: {
               type: 'string',

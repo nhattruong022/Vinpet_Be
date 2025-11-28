@@ -26,9 +26,9 @@ export class PostService {
         postData.seoTitle = postData.title_en || postData.title_vi || postData.title_ko || 'Untitled';
       }
 
-      // Set default meta description if not provided
+      // Set default meta description if not provided - ưu tiên description_en, sau đó description_vi, cuối cùng description_ko hoặc description cũ
       if (!postData.metaDescription) {
-        postData.metaDescription = postData.excerpt || '';
+        postData.metaDescription = postData.description_en || postData.description_vi || postData.description_ko || postData.description || '';
       }
 
       const post = new Post({
@@ -145,7 +145,10 @@ export class PostService {
           { content_en: { $regex: search, $options: 'i' } },
           { content_vi: { $regex: search, $options: 'i' } },
           { content_ko: { $regex: search, $options: 'i' } },
-          { excerpt: { $regex: search, $options: 'i' } }
+          { description: { $regex: search, $options: 'i' } },
+          { description_en: { $regex: search, $options: 'i' } },
+          { description_vi: { $regex: search, $options: 'i' } },
+          { description_ko: { $regex: search, $options: 'i' } }
         ];
       }
 

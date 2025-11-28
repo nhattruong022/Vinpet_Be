@@ -45,7 +45,7 @@ export class PostController {
    *         name: search
    *         schema:
    *           type: string
-   *         description: Search in title, content, excerpt
+   *         description: Search in title, content, description
    *       - in: query
    *         name: sortBy
    *         schema:
@@ -173,6 +173,9 @@ export class PostController {
    *                     content:
    *                       type: string
    *                       description: Post content based on locale parameter (Markdown format)
+   *                     description:
+   *                       type: string
+   *                       description: Post description based on locale parameter
    *       404:
    *         description: Post not found
    *         content:
@@ -234,7 +237,7 @@ export class PostController {
         return;
       }
 
-      // Lấy title và content theo locale
+      // Lấy title, content và description theo locale
       const title = selectedLocale === 'vi'
         ? (post.title_vi || post.title_en || '')
         : selectedLocale === 'ko'
@@ -247,7 +250,21 @@ export class PostController {
           ? (post.content_ko || post.content_en || '')
           : (post.content_en || '');
 
-      // Chỉ trả về 3 field: id, title, content (theo locale)
+      let description = selectedLocale === 'vi'
+        ? (post.description_vi || post.description_en || '')
+        : selectedLocale === 'ko'
+          ? (post.description_ko || post.description_en || '')
+          : (post.description_en || '');
+
+      // Làm sạch description: loại bỏ \r\n, \n, \r và khoảng trắng thừa, chỉ giữ text thuần túy
+      description = description
+        .replace(/\r\n/g, ' ')  // Thay \r\n bằng khoảng trắng
+        .replace(/\n/g, ' ')    // Thay \n bằng khoảng trắng
+        .replace(/\r/g, ' ')    // Thay \r bằng khoảng trắng
+        .replace(/\s+/g, ' ')   // Thay nhiều khoảng trắng liên tiếp bằng một khoảng trắng
+        .trim();                // Loại bỏ khoảng trắng đầu và cuối
+
+      // Trả về 4 field: id, title, content, description (theo locale)
       res.status(200).json({
         success: true,
         returnCode: 200,
@@ -255,7 +272,8 @@ export class PostController {
         result: {
           id: (post as any)._id.toString(),
           title: title,
-          content: content
+          content: content,
+          description: description
         }
       });
     } catch (error: any) {
@@ -304,9 +322,18 @@ export class PostController {
    *               author:
    *                 type: string
    *                 description: Author ID
-   *               excerpt:
+   *               description:
    *                 type: string
-   *                 description: Post excerpt
+   *                 description: Post description (deprecated, use description_en, description_vi, description_ko)
+   *               description_en:
+   *                 type: string
+   *                 description: Post description in English
+   *               description_vi:
+   *                 type: string
+   *                 description: Post description in Vietnamese
+   *               description_ko:
+   *                 type: string
+   *                 description: Post description in Korean
    *               status:
    *                 type: string
    *                 enum: [draft, published, pending, archived, private]
@@ -434,8 +461,18 @@ export class PostController {
    *                 type: string
    *               content:
    *                 type: string
-   *               excerpt:
+   *               description:
    *                 type: string
+   *                 description: Post description (deprecated, use description_en, description_vi, description_ko)
+   *               description_en:
+   *                 type: string
+   *                 description: Post description in English
+   *               description_vi:
+   *                 type: string
+   *                 description: Post description in Vietnamese
+   *               description_ko:
+   *                 type: string
+   *                 description: Post description in Korean
    *               status:
    *                 type: string
    *                 enum: [draft, published, pending, archived, private]
@@ -891,29 +928,16 @@ export class PostController {
             console.warn(`No images found for post ${post._id}`);
           }
 
-          // Helper function to create description from content
-          const createDescription = (content: string | undefined): string => {
-            if (content) {
-              // Strip HTML tags and get first 200 characters
-              const plainText = content.replace(/<[^>]*>/g, '').trim();
-              return plainText.length > 200
-                ? plainText.substring(0, 200) + '...'
-                : plainText;
-            }
-            return '';
-          };
-
           // Build response object with multilingual fields
+          // Description chỉ lấy từ description đúng ngôn ngữ, không fallback về description cũ
           const responseItem: any = {
             id: post._id.toString(),
             title_en: post.title_en || '',
             title_vi: post.title_vi || '',
             title_ko: post.title_ko || '',
-            // description_en: ưu tiên content_en, nếu không có thì dùng excerpt
-            description_en: createDescription(post.content_en) || post.excerpt || '',
-            // description_vi và description_ko: chỉ dùng content tương ứng
-            description_vi: createDescription(post.content_vi),
-            description_ko: createDescription(post.content_ko),
+            description_en: post.description_en || '',
+            description_vi: post.description_vi || '',
+            description_ko: post.description_ko || '',
             createdAt: post.createdAt
           };
 
