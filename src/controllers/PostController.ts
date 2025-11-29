@@ -269,19 +269,28 @@ export class PostController {
           : (post.content_en || '');
 
       // Chèn images vào content markdown dưới dạng markdown image syntax
+      // Loại bỏ thumbnail image (position = 0) vì nó chỉ dùng làm thumbnail, không chèn vào content
       const images = (post as any).images || [];
       if (images.length > 0) {
-        // Sắp xếp images theo position
-        const sortedImages = [...images].sort((a: any, b: any) => (a.position || 0) - (b.position || 0));
+        // Sắp xếp images theo position và loại bỏ thumbnail (position = 0)
+        const contentImages = [...images]
+          .filter((img: any) => img.position !== 0 && img.position !== null && img.position !== undefined) // Loại bỏ thumbnail
+          .sort((a: any, b: any) => (a.position || 999) - (b.position || 999));
 
         // Chèn images vào cuối content markdown
-        const imageMarkdowns = sortedImages
-          .filter((img: any) => img.image) // Chỉ lấy images có data
+        const imageMarkdowns = contentImages
+          .filter((img: any) => img.image && img.image.trim() !== '') // Chỉ lấy images có data và không rỗng
           .map((img: any) => {
             // Lấy alt text từ photo nếu có, nếu không thì dùng "Image"
-            const altText = img.altText || img.alt || 'Image';
-            return `![${altText}](${img.image})`;
-          });
+            const altText = (img.altText || img.alt || 'Image').trim();
+            // Đảm bảo base64 string hợp lệ (bắt đầu với data:)
+            const imageData = img.image.trim();
+            if (imageData && imageData.startsWith('data:')) {
+              return `![${altText}](${imageData})`;
+            }
+            return null;
+          })
+          .filter((markdown: string | null) => markdown !== null); // Loại bỏ null values
 
         if (imageMarkdowns.length > 0) {
           // Thêm images vào cuối content, cách một dòng trống
