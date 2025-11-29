@@ -948,6 +948,142 @@ export class PostController {
    *       500:
    *         description: Internal server error
    */
+  /**
+   * @swagger
+   * /api/blog/detail/{id}:
+   *   get:
+   *     summary: Get blog post detail by ID
+   *     tags: [Posts]
+   *     parameters:
+   *       - in: path
+   *         name: id
+   *         required: true
+   *         schema:
+   *           type: string
+   *         description: Post ID
+   *       - in: query
+   *         name: locale
+   *         schema:
+   *           type: string
+   *           enum: [vi, en, ko]
+   *           default: vi
+   *         description: Locale for title and description
+   *     responses:
+   *       200:
+   *         description: Blog post detail retrieved successfully
+   *         content:
+   *           application/json:
+   *             schema:
+   *               type: object
+   *               properties:
+   *                 success:
+   *                   type: boolean
+   *                 returnCode:
+   *                   type: integer
+   *                 message:
+   *                   type: string
+   *                 result:
+   *                   type: object
+   *                   properties:
+   *                     id:
+   *                       type: string
+   *                     title:
+   *                       type: string
+   *                     description:
+   *                       type: string
+   *                     author:
+   *                       type: string
+   *                     tags:
+   *                       type: array
+   *                       items:
+   *                         type: string
+   *                     updatedAt:
+   *                       type: string
+   *                       format: date-time
+   *                     createdAt:
+   *                       type: string
+   *                       format: date-time
+   *       404:
+   *         description: Post not found
+   *       500:
+   *         description: Internal server error
+   */
+  static async getBlogDetail(req: Request, res: Response): Promise<void> {
+    try {
+      const { id } = req.params;
+      const { locale = 'vi' } = req.query;
+
+      if (!id || !mongoose.Types.ObjectId.isValid(id)) {
+        res.status(404).json({
+          success: false,
+          returnCode: 404,
+          message: 'Post not found'
+        });
+        return;
+      }
+
+      // Validate locale
+      const validLocales = ['en', 'vi', 'ko'];
+      const selectedLocale = validLocales.includes(locale as string) ? (locale as string) : 'vi';
+
+      const post = await PostService.getPostById(id);
+
+      if (!post) {
+        res.status(404).json({
+          success: false,
+          returnCode: 404,
+          message: 'Post not found'
+        });
+        return;
+      }
+
+      // Lấy title theo locale
+      const title = selectedLocale === 'vi'
+        ? (post.title_vi || post.title_en || 'Blog')
+        : selectedLocale === 'ko'
+          ? (post.title_ko || post.title_en || 'Blog')
+          : (post.title_en || 'Blog');
+
+      // Lấy description theo locale
+      let description = selectedLocale === 'vi'
+        ? (post.description_vi || post.description_en || '')
+        : selectedLocale === 'ko'
+          ? (post.description_ko || post.description_en || '')
+          : (post.description_en || '');
+
+      // Làm sạch description: loại bỏ \r\n, \n, \r và khoảng trắng thừa
+      description = description
+        .replace(/\r\n/g, ' ')
+        .replace(/\n/g, ' ')
+        .replace(/\r/g, ' ')
+        .replace(/\s+/g, ' ')
+        .trim();
+
+      // Trả về các field theo yêu cầu
+      res.status(200).json({
+        success: true,
+        returnCode: 200,
+        message: 'Blog detail retrieved successfully',
+        result: {
+          id: (post as any)._id.toString(),
+          title: title || 'Blog',
+          description: description,
+          author: 'VINPET',
+          tags: post.tags || [],
+          updatedAt: post.updatedAt ? new Date(post.updatedAt).toISOString() : new Date().toISOString(),
+          createdAt: post.createdAt ? new Date(post.createdAt).toISOString() : new Date().toISOString()
+        }
+      });
+    } catch (error: any) {
+      res.status(500).json({
+        success: false,
+        returnCode: 500,
+        message: error.message,
+        detail: error.stack
+      });
+    }
+  }
+
   static async getBlogPosts(req: Request, res: Response): Promise<void> {
     try {
       const {
