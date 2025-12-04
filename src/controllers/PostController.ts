@@ -303,8 +303,8 @@ export class PostController {
         }
       }
 
-      // Convert markdown sang HTML
-      const content = markdownToHtml(contentMarkdown);
+  
+      const content =contentMarkdown;
 
       let description = selectedLocale === 'vi'
         ? (post.description_vi || post.description_en || '')
