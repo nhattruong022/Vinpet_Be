@@ -277,34 +277,101 @@ export class PostController {
           .filter((img: any) => img.position !== 0 && img.position !== null && img.position !== undefined) // Loại bỏ thumbnail
           .sort((a: any, b: any) => (a.position || 999) - (b.position || 999));
 
-        // Chèn images vào cuối content markdown
-        const imageMarkdowns = contentImages
-          .filter((img: any) => img.image && img.image.trim() !== '') // Chỉ lấy images có data và không rỗng
-          .map((img: any) => {
-            // Lấy alt text từ photo nếu có, nếu không thì dùng "Image"
+        // Tạo map images theo position
+        const imagesByPosition = new Map<number, string[]>();
+        contentImages.forEach((img: any) => {
+          if (img.image && img.image.trim() !== '') {
             const altText = (img.altText || img.alt || 'Image').trim();
-            // Đảm bảo base64 string hợp lệ (bắt đầu với data:)
             const imageData = img.image.trim();
             if (imageData && imageData.startsWith('data:')) {
-              return `![${altText}](${imageData})`;
+              const position = img.position || 999;
+              if (!imagesByPosition.has(position)) {
+                imagesByPosition.set(position, []);
+              }
+              imagesByPosition.get(position)!.push(`![${altText}](${imageData})`);
             }
-            return null;
-          })
-          .filter((markdown: string | null) => markdown !== null); // Loại bỏ null values
-
-        if (imageMarkdowns.length > 0) {
-          // Thêm images vào cuối content, cách một dòng trống
-          contentMarkdown = contentMarkdown.trim();
-          if (contentMarkdown) {
-            contentMarkdown += '\n\n' + imageMarkdowns.join('\n\n');
-          } else {
-            contentMarkdown = imageMarkdowns.join('\n\n');
           }
+        });
+
+        // Chèn images vào giữa content dựa trên position
+        if (imagesByPosition.size > 0) {
+          // Chia content thành các đoạn (paragraphs) dựa trên dòng trống
+          // Giữ nguyên heading và nội dung của nó cùng nhau
+          const paragraphs = contentMarkdown.split(/\n\n+/).filter(p => p.trim());
+          const result: string[] = [];
+
+          // Nếu có nhiều images nhưng chưa được phân bổ hợp lý, tự động phân bổ
+          const totalImages = contentImages.length;
+          const totalParagraphs = paragraphs.length;
+
+          // Tính toán vị trí hợp lý để phân bổ đều images
+          const getOptimalPositions = (imageCount: number, paragraphCount: number): number[] => {
+            if (imageCount === 0 || paragraphCount === 0) return [];
+
+            // Phân bổ đều: chia content thành (imageCount + 1) phần
+            const positions: number[] = [];
+            const step = Math.max(1, Math.floor(paragraphCount / (imageCount + 1)));
+
+            for (let i = 1; i <= imageCount; i++) {
+              const pos = Math.min(i * step, paragraphCount);
+              positions.push(pos);
+            }
+
+            return positions;
+          };
+
+          // Kiểm tra xem có images nào có position hợp lý không (1 <= position <= totalParagraphs)
+          const hasValidPositions = Array.from(imagesByPosition.keys()).some(
+            pos => pos >= 1 && pos <= totalParagraphs
+          );
+
+          // Nếu không có position hợp lý, tự động phân bổ
+          if (!hasValidPositions && totalImages > 0 && totalParagraphs > 0) {
+            const optimalPositions = getOptimalPositions(totalImages, totalParagraphs);
+            const imageArray = Array.from(imagesByPosition.values()).flat();
+
+            // Xóa map cũ và tạo lại với position hợp lý
+            imagesByPosition.clear();
+            optimalPositions.forEach((pos, index) => {
+              if (index < imageArray.length && imageArray[index]) {
+                if (!imagesByPosition.has(pos)) {
+                  imagesByPosition.set(pos, []);
+                }
+                imagesByPosition.get(pos)!.push(imageArray[index]);
+              }
+            });
+          }
+
+          // Duyệt qua từng đoạn và chèn images sau đoạn tương ứng
+          paragraphs.forEach((paragraph, index) => {
+            // Thêm đoạn vào kết quả
+            result.push(paragraph.trim());
+
+            // Position bắt đầu từ 1 (sau đoạn đầu tiên = position 1)
+            const position = index + 1;
+
+            // Nếu có images ở position này, chèn vào
+            if (imagesByPosition.has(position)) {
+              const imageMarkdowns = imagesByPosition.get(position)!;
+              result.push(...imageMarkdowns);
+            }
+          });
+
+          // Chèn các images có position > số đoạn vào cuối
+          const maxPosition = paragraphs.length;
+          imagesByPosition.forEach((imageMarkdowns, position) => {
+            if (position > maxPosition) {
+              result.push(...imageMarkdowns);
+            }
+          });
+
+          // Ghép lại thành content hoàn chỉnh
+          contentMarkdown = result.filter(p => p).join('\n\n');
         }
       }
 
-  
-      const content =contentMarkdown;
+
+      const content = contentMarkdown;
 
       let description = selectedLocale === 'vi'
         ? (post.description_vi || post.description_en || '')
