@@ -1234,4 +1234,89 @@ export class PostController {
       });
     }
   }
+
+  /**
+   * @swagger
+   * /api/posts/{id}/images:
+   *   delete:
+   *     summary: Delete all images of a post
+   *     tags: [Posts]
+   *     parameters:
+   *       - in: path
+   *         name: id
+   *         required: true
+   *         schema:
+   *           type: string
+   *         description: Post ID
+   *     responses:
+   *       200:
+   *         description: All images deleted successfully
+   *         content:
+   *           application/json:
+   *             schema:
+   *               type: object
+   *               properties:
+   *                 success:
+   *                   type: boolean
+   *                 returnCode:
+   *                   type: integer
+   *                 message:
+   *                   type: string
+   *                 result:
+   *                   type: object
+   *                   properties:
+   *                     deletedCount:
+   *                       type: integer
+   *       404:
+   *         description: Post not found
+   *       500:
+   *         description: Internal server error
+   */
+  static async deletePostImages(req: Request, res: Response): Promise<void> {
+    try {
+      const { id } = req.params;
+
+      if (!id || !mongoose.Types.ObjectId.isValid(id)) {
+        res.status(400).json({
+          success: false,
+          returnCode: 400,
+          message: 'Invalid post ID'
+        });
+        return;
+      }
+
+      // Check if post exists
+      const post = await PostService.getPostById(id);
+      if (!post) {
+        res.status(404).json({
+          success: false,
+          returnCode: 404,
+          message: 'Post not found'
+        });
+        return;
+      }
+
+      // Import PhotoService to avoid circular dependency
+      const { PhotoService } = await import('../services/PhotoService');
+
+      // Delete all photos of this post
+      const deletedCount = await PhotoService.deletePhotosByPostId(id);
+
+      res.status(200).json({
+        success: true,
+        returnCode: 200,
+        message: `Successfully deleted ${deletedCount} image(s)`,
+        result: {
+          deletedCount: deletedCount
+        }
+      });
+    } catch (error: any) {
+      res.status(500).json({
+        success: false,
+        returnCode: 500,
+        message: error.message,
+        detail: error.stack
+      });
+    }
+  }
 }

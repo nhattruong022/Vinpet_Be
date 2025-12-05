@@ -222,6 +222,22 @@ export class PhotoService {
   }
 
   /**
+   * Delete all photos by post ID
+   */
+  static async deletePhotosByPostId(postId: string): Promise<number> {
+    try {
+      if (!mongoose.Types.ObjectId.isValid(postId)) {
+        return 0;
+      }
+
+      const result = await Photo.deleteMany({ postId });
+      return result.deletedCount || 0;
+    } catch (error: any) {
+      throw new Error(`Failed to delete photos by post ID: ${error.message}`);
+    }
+  }
+
+  /**
    * Get photo statistics
    */
   static async getPhotoStats(): Promise<any> {
