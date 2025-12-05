@@ -300,7 +300,6 @@ export class PostController {
           const paragraphs = contentMarkdown.split(/\n\n+/).filter(p => p.trim());
           const result: string[] = [];
 
-          // Nếu có nhiều images nhưng chưa được phân bổ hợp lý, tự động phân bổ
           const totalImages = contentImages.length;
           const totalParagraphs = paragraphs.length;
 
@@ -320,27 +319,73 @@ export class PostController {
             return positions;
           };
 
-          // Kiểm tra xem có images nào có position hợp lý không (1 <= position <= totalParagraphs)
-          const hasValidPositions = Array.from(imagesByPosition.keys()).some(
-            pos => pos >= 1 && pos <= totalParagraphs
-          );
+          // Tách images thành 2 nhóm: hợp lý và không hợp lý
+          const validImages: Array<{ position: number; markdowns: string[] }> = [];
+          const invalidImages: string[] = [];
 
-          // Nếu không có position hợp lý, tự động phân bổ
-          if (!hasValidPositions && totalImages > 0 && totalParagraphs > 0) {
-            const optimalPositions = getOptimalPositions(totalImages, totalParagraphs);
-            const imageArray = Array.from(imagesByPosition.values()).flat();
+          imagesByPosition.forEach((markdowns, position) => {
+            if (position >= 1 && position <= totalParagraphs) {
+              // Position hợp lý: giữ nguyên
+              validImages.push({ position, markdowns });
+            } else {
+              // Position không hợp lý: sẽ phân bổ lại
+              invalidImages.push(...markdowns);
+            }
+          });
 
-            // Xóa map cũ và tạo lại với position hợp lý
-            imagesByPosition.clear();
-            optimalPositions.forEach((pos, index) => {
-              if (index < imageArray.length && imageArray[index]) {
-                if (!imagesByPosition.has(pos)) {
-                  imagesByPosition.set(pos, []);
-                }
-                imagesByPosition.get(pos)!.push(imageArray[index]);
+          // Nếu có images không hợp lý, phân bổ lại
+          if (invalidImages.length > 0 && totalParagraphs > 0) {
+            // Lấy các position đã được sử dụng
+            const usedPositions = new Set(validImages.map(img => img.position));
+
+            // Tìm các position trống để chèn images không hợp lý
+            const availablePositions: number[] = [];
+            for (let i = 1; i <= totalParagraphs; i++) {
+              if (!usedPositions.has(i)) {
+                availablePositions.push(i);
               }
-            });
+            }
+
+            // Nếu không đủ position trống, tính toán position tối ưu
+            if (availablePositions.length < invalidImages.length) {
+              const optimalPositions = getOptimalPositions(invalidImages.length, totalParagraphs);
+              // Loại bỏ các position đã được sử dụng
+              const filteredOptimal = optimalPositions.filter(pos => !usedPositions.has(pos));
+
+              // Phân bổ images vào các position tối ưu
+              filteredOptimal.forEach((pos, index) => {
+                if (index < invalidImages.length && invalidImages[index]) {
+                  validImages.push({ position: pos, markdowns: [invalidImages[index]] });
+                }
+              });
+
+              // Nếu vẫn còn images chưa được phân bổ, đặt vào cuối
+              const remainingImages = invalidImages.slice(filteredOptimal.length);
+              if (remainingImages.length > 0) {
+                validImages.push({ position: totalParagraphs, markdowns: remainingImages });
+              }
+            } else {
+              // Có đủ position trống, phân bổ đều
+              invalidImages.forEach((markdown, index) => {
+                if (index < availablePositions.length && availablePositions[index] !== undefined) {
+                  const pos = availablePositions[index]!;
+                  validImages.push({ position: pos, markdowns: [markdown] });
+                }
+              });
+            }
           }
+
+          // Sắp xếp lại theo position
+          validImages.sort((a, b) => a.position - b.position);
+
+          // Tạo lại map với position đã được điều chỉnh
+          imagesByPosition.clear();
+          validImages.forEach(({ position, markdowns }) => {
+            if (!imagesByPosition.has(position)) {
+              imagesByPosition.set(position, []);
+            }
+            imagesByPosition.get(position)!.push(...markdowns);
+          });
 
           // Duyệt qua từng đoạn và chèn images sau đoạn tương ứng
           paragraphs.forEach((paragraph, index) => {
@@ -353,14 +398,6 @@ export class PostController {
             // Nếu có images ở position này, chèn vào
             if (imagesByPosition.has(position)) {
               const imageMarkdowns = imagesByPosition.get(position)!;
-              result.push(...imageMarkdowns);
-            }
-          });
-
-          // Chèn các images có position > số đoạn vào cuối
-          const maxPosition = paragraphs.length;
-          imagesByPosition.forEach((imageMarkdowns, position) => {
-            if (position > maxPosition) {
               result.push(...imageMarkdowns);
             }
           });
