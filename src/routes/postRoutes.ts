@@ -10,6 +10,7 @@ router.get('/:id', PostController.getPostById);
 router.post('/', PostController.createPost);
 router.put('/:id', PostController.updatePost);
 router.delete('/:id', PostController.deletePost);
+router.delete('/:id/images', PostController.deletePostImages);
 router.post('/:id/duplicate', PostController.duplicatePost);
 
 export default router;

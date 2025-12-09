@@ -65,8 +65,14 @@ export class MediaController {
    *                 format: binary
    *               postId:
    *                 type: string
+   *                 description: Post ID to associate the image with
    *               position:
    *                 type: integer
+   *                 description: Position of image in post content (0 for thumbnail)
+   *                 default: 0
+   *               altText:
+   *                 type: string
+   *                 description: Alt text for the image (optional)
    *     responses:
    *       '200':
    *         description: File uploaded successfully
@@ -88,6 +94,7 @@ export class MediaController {
       const file = req.file;
       const postId = req.body.postId || req.query.postId; // Nhận postId từ body hoặc query
       const position = parseInt(req.body.position) || 0; // Nhận position từ body, mặc định là 0
+      const altText = req.body.altText || ''; // Nhận altText từ body (optional)
       const fileUrl = `/uploads/media/${file.filename}`;
       const filePath = path.join(getUploadDir(), file.filename);
 
@@ -102,6 +109,11 @@ export class MediaController {
         position: position,
         status: 'active' as const
       };
+
+      // Thêm altText nếu có (optional)
+      if (altText && altText.trim()) {
+        photoData.altText = altText.trim();
+      }
 
       // Chỉ thêm postId nếu có
       if (postId) {
@@ -124,7 +136,7 @@ export class MediaController {
       const savedPhoto = await PhotoService.createPhoto(photoData);
 
       res.status(200).json({
-        
+
         success: true,
         message: 'File uploaded successfully',
         data: {
@@ -136,6 +148,7 @@ export class MediaController {
           base64: base64String,
           postId: savedPhoto.postId,
           position: savedPhoto.position,
+          altText: savedPhoto.altText || '',
           photoId: savedPhoto._id
         }
       });

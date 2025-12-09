@@ -1,9 +1,16 @@
 import mongoose, { Document, Schema } from 'mongoose';
 
 export interface IPost extends Document {
-  title: string;
-  content: string;
-  excerpt?: string;
+  title_vi?: string;
+  title_en?: string;
+  title_ko?: string;
+  content_vi?: string; // Markdown format
+  content_en?: string; // Markdown format
+  content_ko?: string; // Markdown format
+  description?: string; // Deprecated, use description_vi, description_en, description_ko instead
+  description_vi?: string;
+  description_en?: string;
+  description_ko?: string;
   status: 'draft' | 'published' | 'pending' | 'archived' | 'private';
   publishDate?: Date;
   lockModifiedDate: boolean;
@@ -68,18 +75,48 @@ export interface IPost extends Document {
 }
 
 const PostSchema = new Schema<IPost>({
-  title: {
-    type: String,
-    required: true,
-    trim: true
-  },
-  content: {
-    type: String,
-    required: true
-  },
-  excerpt: {
+  title_vi: {
     type: String,
     trim: true
+  },
+  title_en: {
+    type: String,
+    trim: true
+  },
+  title_ko: {
+    type: String,
+    trim: true
+  },
+  content_vi: {
+    type: String,
+    description: 'Post content in Vietnamese (Markdown format)'
+  },
+  content_en: {
+    type: String,
+    description: 'Post content in English (Markdown format)'
+  },
+  content_ko: {
+    type: String,
+    description: 'Post content in Korean (Markdown format)'
+  },
+  description: {
+    type: String,
+    trim: true
+  },
+  description_vi: {
+    type: String,
+    trim: true,
+    description: 'Post description in Vietnamese'
+  },
+  description_en: {
+    type: String,
+    trim: true,
+    description: 'Post description in English'
+  },
+  description_ko: {
+    type: String,
+    trim: true,
+    description: 'Post description in Korean'
   },
   status: {
     type: String,

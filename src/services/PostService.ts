@@ -15,19 +15,20 @@ export class PostService {
         throw new Error('Author not found');
       }
 
-      // Generate permalink if not provided
+      // Generate permalink if not provided - ưu tiên title_en, sau đó title_vi, cuối cùng title_ko
       if (!postData.permalink) {
-        postData.permalink = this.generateSlug(postData.title || 'untitled');
+        const titleForSlug = postData.title_en || postData.title_vi || postData.title_ko || 'untitled';
+        postData.permalink = this.generateSlug(titleForSlug);
       }
 
-      // Set default SEO title if not provided
+      // Set default SEO title if not provided - ưu tiên title_en
       if (!postData.seoTitle) {
-        postData.seoTitle = postData.title || 'Untitled';
+        postData.seoTitle = postData.title_en || postData.title_vi || postData.title_ko || 'Untitled';
       }
 
-      // Set default meta description if not provided
+      // Set default meta description if not provided - ưu tiên description_en, sau đó description_vi, cuối cùng description_ko hoặc description cũ
       if (!postData.metaDescription) {
-        postData.metaDescription = postData.excerpt || '';
+        postData.metaDescription = postData.description_en || postData.description_vi || postData.description_ko || postData.description || '';
       }
 
       const post = new Post({
@@ -138,9 +139,16 @@ export class PostService {
 
       if (search) {
         query.$or = [
-          { title: { $regex: search, $options: 'i' } },
-          { content: { $regex: search, $options: 'i' } },
-          { excerpt: { $regex: search, $options: 'i' } }
+          { title_en: { $regex: search, $options: 'i' } },
+          { title_vi: { $regex: search, $options: 'i' } },
+          { title_ko: { $regex: search, $options: 'i' } },
+          { content_en: { $regex: search, $options: 'i' } },
+          { content_vi: { $regex: search, $options: 'i' } },
+          { content_ko: { $regex: search, $options: 'i' } },
+          { description: { $regex: search, $options: 'i' } },
+          { description_en: { $regex: search, $options: 'i' } },
+          { description_vi: { $regex: search, $options: 'i' } },
+          { description_ko: { $regex: search, $options: 'i' } }
         ];
       }
 
@@ -211,7 +219,9 @@ export class PostService {
   static async updatePost(id: string, updateData: Partial<IPost>): Promise<IPost | null> {
     try {
       // Recalculate SEO score if content changed
-      if (updateData.title || updateData.content || updateData.metaDescription) {
+      const hasTitleChange = updateData.title_en || updateData.title_vi || updateData.title_ko;
+      const hasContentChange = updateData.content_en || updateData.content_vi || updateData.content_ko;
+      if (hasTitleChange || hasContentChange || updateData.metaDescription) {
         const existingPost = await Post.findById(id);
         if (existingPost) {
           const mergedData = { ...existingPost.toObject(), ...updateData };
@@ -269,8 +279,14 @@ export class PostService {
       delete (duplicatedData as any).createdAt;
       delete (duplicatedData as any).updatedAt;
 
-      duplicatedData.title = newTitle || `${originalPost.title} (Copy)`;
-      duplicatedData.permalink = this.generateSlug(duplicatedData.title);
+      // Duplicate title - ưu tiên title_en, sau đó title_vi, cuối cùng title_ko
+      const originalTitle = originalPost.title_en || originalPost.title_vi || originalPost.title_ko || 'Untitled';
+      if (newTitle) {
+        duplicatedData.title_en = newTitle;
+      } else {
+        duplicatedData.title_en = `${originalTitle} (Copy)`;
+      }
+      duplicatedData.permalink = this.generateSlug(duplicatedData.title_en);
       duplicatedData.status = 'draft';
       delete (duplicatedData as any).publishDate;
 
@@ -300,10 +316,11 @@ export class PostService {
     let score = 0;
     const maxScore = 100;
 
-    // Title (20 points)
-    if (postData.title && postData.title.length >= 10 && postData.title.length <= 60) {
+    // Title (20 points) - ưu tiên title_en, sau đó title_vi, cuối cùng title_ko
+    const title = postData.title_en || postData.title_vi || postData.title_ko;
+    if (title && title.length >= 10 && title.length <= 60) {
       score += 20;
-    } else if (postData.title) {
+    } else if (title) {
       score += 10;
     }
 
@@ -314,10 +331,11 @@ export class PostService {
       score += 10;
     }
 
-    // Content (20 points)
-    if (postData.content && postData.content.length >= 300) {
+    // Content (20 points) - ưu tiên content_en, sau đó content_vi, cuối cùng content_ko
+    const content = postData.content_en || postData.content_vi || postData.content_ko;
+    if (content && content.length >= 300) {
       score += 20;
-    } else if (postData.content) {
+    } else if (content) {
       score += 10;
     }
 
@@ -351,7 +369,9 @@ export class PostService {
    * Get SEO snippet preview
    */
   static getSeoSnippetPreview(postData: {
-    title: string;
+    title_en?: string;
+    title_vi?: string;
+    title_ko?: string;
     permalink: string;
     metaDescription: string;
     siteName?: string;
@@ -361,9 +381,11 @@ export class PostService {
     previewDescription: string;
   } {
     const siteName = postData.siteName || 'Vinpet';
+    // Ưu tiên title_en, sau đó title_vi, cuối cùng title_ko
+    const title = postData.title_en || postData.title_vi || postData.title_ko || 'Untitled';
 
     return {
-      previewTitle: postData.title || 'Untitled',
+      previewTitle: title,
       previewUrl: `https://${siteName.toLowerCase()}.com/${postData.permalink}`,
       previewDescription: postData.metaDescription || ''
     };

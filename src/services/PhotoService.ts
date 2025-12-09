@@ -84,7 +84,9 @@ export class PhotoService {
                 id: photo._id,
                 position: photo.position || 0,
                 postId: photo.postId,
-                image: photo.base64
+                image: photo.base64,
+                altText: photo.altText || photo.alt || '',
+                alt: photo.alt || photo.altText || ''
               };
             }
 
@@ -118,7 +120,9 @@ export class PhotoService {
                   id: photo._id,
                   position: photo.position || 0,
                   postId: photo.postId,
-                  image: base64String
+                  image: base64String,
+                  altText: photo.altText || photo.alt || '',
+                  alt: photo.alt || photo.altText || ''
                 };
               } catch (readError: any) {
                 console.error(`Error reading file ${filePath} for photo ${photo._id}:`, readError.message);
@@ -126,7 +130,9 @@ export class PhotoService {
                   id: photo._id,
                   position: photo.position || 0,
                   postId: photo.postId,
-                  image: null
+                  image: null,
+                  altText: photo.altText || photo.alt || '',
+                  alt: photo.alt || photo.altText || ''
                 };
               }
             } else {
@@ -136,7 +142,9 @@ export class PhotoService {
                 id: photo._id,
                 position: photo.position || 0,
                 postId: photo.postId,
-                image: null
+                image: null,
+                altText: photo.altText || photo.alt || '',
+                alt: photo.alt || photo.altText || ''
               };
             }
           } catch (error) {
@@ -146,7 +154,9 @@ export class PhotoService {
               id: photo._id,
               position: photo.position || 0,
               postId: photo.postId,
-              image: null
+              image: null,
+              altText: photo.altText || photo.alt || '',
+              alt: photo.alt || photo.altText || ''
             };
           }
         })
@@ -208,6 +218,22 @@ export class PhotoService {
       return !!result;
     } catch (error: any) {
       throw new Error(`Failed to delete photo: ${error.message}`);
+    }
+  }
+
+  /**
+   * Delete all photos by post ID
+   */
+  static async deletePhotosByPostId(postId: string): Promise<number> {
+    try {
+      if (!mongoose.Types.ObjectId.isValid(postId)) {
+        return 0;
+      }
+
+      const result = await Photo.deleteMany({ postId });
+      return result.deletedCount || 0;
+    } catch (error: any) {
+      throw new Error(`Failed to delete photos by post ID: ${error.message}`);
     }
   }
 

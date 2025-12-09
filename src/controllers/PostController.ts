@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import { PostService } from '../services/PostService';
 import mongoose from 'mongoose';
+import { markdownToHtml } from '../utils/markdown';
 
 export class PostController {
   /**
@@ -45,7 +46,7 @@ export class PostController {
    *         name: search
    *         schema:
    *           type: string
-   *         description: Search in title, content, excerpt
+   *         description: Search in title, content, description
    *       - in: query
    *         name: sortBy
    *         schema:
@@ -138,6 +139,14 @@ export class PostController {
    *         schema:
    *           type: string
    *         description: Post ID
+   *       - in: query
+   *         name: locale
+   *         required: false
+   *         schema:
+   *           type: string
+   *           enum: [en, vi, ko]
+   *           default: vi
+   *         description: Locale for title and content (en, vi, ko). Default is 'vi'
    *     responses:
    *       200:
    *         description: Post retrieved successfully
@@ -148,46 +157,295 @@ export class PostController {
    *               properties:
    *                 success:
    *                   type: boolean
+   *                 returnCode:
+   *                   type: integer
+   *                   example: 200
    *                 message:
    *                   type: string
-   *                 data:
-   *                   $ref: '#/components/schemas/Post'
+   *                 result:
+   *                   type: object
+   *                   properties:
+   *                     id:
+   *                       type: string
+   *                       description: Post ID
+   *                     title:
+   *                       type: string
+   *                       description: Post title based on locale parameter
+   *                     content:
+   *                       type: string
+   *                       description: Post content based on locale parameter (converted from Markdown to HTML)
+   *                     description:
+   *                       type: string
+   *                       description: Post description based on locale parameter
+   *                     tags:
+   *                       type: array
+   *                       items:
+   *                         type: string
+   *                       description: Post tags
+   *                     author:
+   *                       type: string
+   *                       description: Post author, default is VINPET
+   *                     createdAt:
+   *                       type: string
+   *                       format: date-time
+   *                       description: Post creation date
+   *                     updatedAt:
+   *                       type: string
+   *                       format: date-time
+   *                       description: Post last updated date
    *       404:
    *         description: Post not found
+   *         content:
+   *           application/json:
+   *             schema:
+   *               type: object
+   *               properties:
+   *                 success:
+   *                   type: boolean
+   *                 returnCode:
+   *                   type: integer
+   *                   example: 404
+   *                 message:
+   *                   type: string
    *       500:
    *         description: Internal server error
+   *         content:
+   *           application/json:
+   *             schema:
+   *               type: object
+   *               properties:
+   *                 success:
+   *                   type: boolean
+   *                 returnCode:
+   *                   type: integer
+   *                   example: 500
+   *                 message:
+   *                   type: string
+   *                 detail:
+   *                   type: string
+   *                   nullable: true
    */
   static async getPostById(req: Request, res: Response): Promise<void> {
     try {
       const { id } = req.params;
+      const { locale = 'vi' } = req.query;
 
       if (!id || !mongoose.Types.ObjectId.isValid(id)) {
-        res.status(400).json({
+        res.status(404).json({
           success: false,
-          message: 'Invalid post ID'
+          returnCode: 404,
+          message: 'Post not found'
         });
         return;
       }
+
+      // Validate locale
+      const validLocales = ['en', 'vi', 'ko'];
+      const selectedLocale = validLocales.includes(locale as string) ? (locale as string) : 'vi';
 
       const post = await PostService.getPostById(id);
 
       if (!post) {
         res.status(404).json({
           success: false,
+          returnCode: 404,
           message: 'Post not found'
         });
         return;
       }
 
+      // Lấy title, content và description theo locale
+      const title = selectedLocale === 'vi'
+        ? (post.title_vi || post.title_en || '')
+        : selectedLocale === 'ko'
+          ? (post.title_ko || post.title_en || '')
+          : (post.title_en || '');
+
+      // Lấy content markdown theo locale
+      let contentMarkdown = selectedLocale === 'vi'
+        ? (post.content_vi || post.content_en || '')
+        : selectedLocale === 'ko'
+          ? (post.content_ko || post.content_en || '')
+          : (post.content_en || '');
+
+      // Chèn images vào content markdown dưới dạng markdown image syntax
+      // Loại bỏ thumbnail image (position = 0) vì nó chỉ dùng làm thumbnail, không chèn vào content
+      const images = (post as any).images || [];
+      if (images.length > 0) {
+        // Sắp xếp images theo position và loại bỏ thumbnail (position = 0)
+        const contentImages = [...images]
+          .filter((img: any) => img.position !== 0 && img.position !== null && img.position !== undefined) // Loại bỏ thumbnail
+          .sort((a: any, b: any) => (a.position || 999) - (b.position || 999));
+
+        // Tạo map images theo position
+        const imagesByPosition = new Map<number, string[]>();
+        contentImages.forEach((img: any) => {
+          if (img.image && img.image.trim() !== '') {
+            const altText = (img.altText || img.alt || 'Image').trim();
+            const imageData = img.image.trim();
+            if (imageData && imageData.startsWith('data:')) {
+              const position = img.position || 999;
+              if (!imagesByPosition.has(position)) {
+                imagesByPosition.set(position, []);
+              }
+              imagesByPosition.get(position)!.push(`![${altText}](${imageData})`);
+            }
+          }
+        });
+
+        // Chèn images vào giữa content dựa trên position
+        if (imagesByPosition.size > 0) {
+          // Chia content thành các đoạn (paragraphs) dựa trên dòng trống
+          // Giữ nguyên heading và nội dung của nó cùng nhau
+          const paragraphs = contentMarkdown.split(/\n\n+/).filter(p => p.trim());
+          const result: string[] = [];
+
+          const totalImages = contentImages.length;
+          const totalParagraphs = paragraphs.length;
+
+          // Tính toán vị trí hợp lý để phân bổ đều images
+          const getOptimalPositions = (imageCount: number, paragraphCount: number): number[] => {
+            if (imageCount === 0 || paragraphCount === 0) return [];
+
+            // Phân bổ đều: chia content thành (imageCount + 1) phần
+            const positions: number[] = [];
+            const step = Math.max(1, Math.floor(paragraphCount / (imageCount + 1)));
+
+            for (let i = 1; i <= imageCount; i++) {
+              const pos = Math.min(i * step, paragraphCount);
+              positions.push(pos);
+            }
+
+            return positions;
+          };
+
+          // Tách images thành 2 nhóm: hợp lý và không hợp lý
+          const validImages: Array<{ position: number; markdowns: string[] }> = [];
+          const invalidImages: string[] = [];
+
+          imagesByPosition.forEach((markdowns, position) => {
+            if (position >= 1 && position <= totalParagraphs) {
+              // Position hợp lý: giữ nguyên
+              validImages.push({ position, markdowns });
+            } else {
+              // Position không hợp lý: sẽ phân bổ lại
+              invalidImages.push(...markdowns);
+            }
+          });
+
+          // Nếu có images không hợp lý, phân bổ lại
+          if (invalidImages.length > 0 && totalParagraphs > 0) {
+            // Lấy các position đã được sử dụng
+            const usedPositions = new Set(validImages.map(img => img.position));
+
+            // Tìm các position trống để chèn images không hợp lý
+            const availablePositions: number[] = [];
+            for (let i = 1; i <= totalParagraphs; i++) {
+              if (!usedPositions.has(i)) {
+                availablePositions.push(i);
+              }
+            }
+
+            // Nếu không đủ position trống, tính toán position tối ưu
+            if (availablePositions.length < invalidImages.length) {
+              const optimalPositions = getOptimalPositions(invalidImages.length, totalParagraphs);
+              // Loại bỏ các position đã được sử dụng
+              const filteredOptimal = optimalPositions.filter(pos => !usedPositions.has(pos));
+
+              // Phân bổ images vào các position tối ưu
+              filteredOptimal.forEach((pos, index) => {
+                if (index < invalidImages.length && invalidImages[index]) {
+                  validImages.push({ position: pos, markdowns: [invalidImages[index]] });
+                }
+              });
+
+              // Nếu vẫn còn images chưa được phân bổ, đặt vào cuối
+              const remainingImages = invalidImages.slice(filteredOptimal.length);
+              if (remainingImages.length > 0) {
+                validImages.push({ position: totalParagraphs, markdowns: remainingImages });
+              }
+            } else {
+              // Có đủ position trống, phân bổ đều
+              invalidImages.forEach((markdown, index) => {
+                if (index < availablePositions.length && availablePositions[index] !== undefined) {
+                  const pos = availablePositions[index]!;
+                  validImages.push({ position: pos, markdowns: [markdown] });
+                }
+              });
+            }
+          }
+
+          // Sắp xếp lại theo position
+          validImages.sort((a, b) => a.position - b.position);
+
+          // Tạo lại map với position đã được điều chỉnh
+          imagesByPosition.clear();
+          validImages.forEach(({ position, markdowns }) => {
+            if (!imagesByPosition.has(position)) {
+              imagesByPosition.set(position, []);
+            }
+            imagesByPosition.get(position)!.push(...markdowns);
+          });
+
+          // Duyệt qua từng đoạn và chèn images sau đoạn tương ứng
+          paragraphs.forEach((paragraph, index) => {
+            // Thêm đoạn vào kết quả
+            result.push(paragraph.trim());
+
+            // Position bắt đầu từ 1 (sau đoạn đầu tiên = position 1)
+            const position = index + 1;
+
+            // Nếu có images ở position này, chèn vào
+            if (imagesByPosition.has(position)) {
+              const imageMarkdowns = imagesByPosition.get(position)!;
+              result.push(...imageMarkdowns);
+            }
+          });
+
+          // Ghép lại thành content hoàn chỉnh
+          contentMarkdown = result.filter(p => p).join('\n\n');
+        }
+      }
+
+
+      const content = contentMarkdown;
+
+      let description = selectedLocale === 'vi'
+        ? (post.description_vi || post.description_en || '')
+        : selectedLocale === 'ko'
+          ? (post.description_ko || post.description_en || '')
+          : (post.description_en || '');
+
+      // Làm sạch description: loại bỏ \r\n, \n, \r và khoảng trắng thừa, chỉ giữ text thuần túy
+      description = description
+        .replace(/\r\n/g, ' ')  // Thay \r\n bằng khoảng trắng
+        .replace(/\n/g, ' ')    // Thay \n bằng khoảng trắng
+        .replace(/\r/g, ' ')    // Thay \r bằng khoảng trắng
+        .replace(/\s+/g, ' ')   // Thay nhiều khoảng trắng liên tiếp bằng một khoảng trắng
+        .trim();                // Loại bỏ khoảng trắng đầu và cuối
+
+      // Trả về 8 field: id, title, content (HTML), description, tags, author, createdAt, updatedAt (theo locale)
       res.status(200).json({
         success: true,
+        returnCode: 200,
         message: 'Post retrieved successfully',
-        data: post
+        result: {
+          id: (post as any)._id.toString(),
+          title: title,
+          content: content,
+          description: description,
+          tags: post.tags || [],
+          author: 'VINPET',
+          createdAt: post.createdAt ? new Date(post.createdAt).toISOString() : new Date().toISOString(),
+          updatedAt: post.updatedAt ? new Date(post.updatedAt).toISOString() : new Date().toISOString()
+        }
       });
     } catch (error: any) {
       res.status(500).json({
         success: false,
-        message: error.message
+        returnCode: 500,
+        message: error.message,
+        detail: error.stack
       });
     }
   }
@@ -204,20 +462,40 @@ export class PostController {
    *         application/json:
    *           schema:
    *             type: object
-   *             required:
-   *               - title
-   *               - content
-   *               - author
    *             properties:
-   *               title:
+   *               title_en:
    *                 type: string
-   *                 description: Post title
-   *               content:
+   *                 description: Post title in English
+   *               title_vi:
    *                 type: string
-   *                 description: Post content
-   *               excerpt:
+   *                 description: Post title in Vietnamese
+   *               title_ko:
    *                 type: string
-   *                 description: Post excerpt
+   *                 description: Post title in Korean
+   *               content_en:
+   *                 type: string
+   *                 description: Post content in English (Markdown format)
+   *               content_vi:
+   *                 type: string
+   *                 description: Post content in Vietnamese (Markdown format)
+   *               content_ko:
+   *                 type: string
+   *                 description: Post content in Korean (Markdown format)
+   *               author:
+   *                 type: string
+   *                 description: Author ID (optional, defaults to first user in database if not provided)
+   *               description:
+   *                 type: string
+   *                 description: Post description (deprecated, use description_en, description_vi, description_ko)
+   *               description_en:
+   *                 type: string
+   *                 description: Post description in English
+   *               description_vi:
+   *                 type: string
+   *                 description: Post description in Vietnamese
+   *               description_ko:
+   *                 type: string
+   *                 description: Post description in Korean
    *               status:
    *                 type: string
    *                 enum: [draft, published, pending, archived, private]
@@ -225,9 +503,6 @@ export class PostController {
    *               publishDate:
    *                 type: string
    *                 format: date-time
-   *               author:
-   *                 type: string
-   *                 description: Author ID
    *               seoTitle:
    *                 type: string
    *                 description: SEO title
@@ -250,19 +525,6 @@ export class PostController {
    *                 items:
    *                   type: string
    *                 description: Post tags
-   *               robotsMeta:
-   *                 type: object
-   *                 properties:
-   *                   index:
-   *                     type: boolean
-   *                   nofollow:
-   *                     type: boolean
-   *                   noimageindex:
-   *                     type: boolean
-   *                   noarchive:
-   *                     type: boolean
-   *                   nosnippet:
-   *                     type: boolean
    *               canonicalUrl:
    *                 type: string
    *               breadcrumbTitle:
@@ -290,26 +552,50 @@ export class PostController {
     try {
       const postData = req.body;
 
-      // Validate required fields
-      if (!postData.title || !postData.content || !postData.author) {
+      // Validate required fields - yêu cầu ít nhất một title và một content
+      const hasTitle = postData.title_en || postData.title_vi || postData.title_ko;
+      const hasContent = postData.content_en || postData.content_vi || postData.content_ko;
+
+      if (!hasTitle || !hasContent) {
         res.status(400).json({
           success: false,
-          message: 'Title, content, and author are required'
+          returnCode: 400,
+          message: 'At least one title (title_en, title_vi, or title_ko) and one content (content_en, content_vi, or content_ko) are required'
         });
         return;
       }
 
-      const post = await PostService.createPost(postData, postData.author);
+      // Set default author if not provided
+      let authorId = postData.author;
+      if (!authorId) {
+        // Tìm user đầu tiên trong database làm author mặc định
+        const { User } = await import('../models/User');
+        const defaultUser = await User.findOne();
+        if (!defaultUser) {
+          res.status(400).json({
+            success: false,
+            returnCode: 400,
+            message: 'No default author found. Please provide an author ID or create a user first.'
+          });
+          return;
+        }
+        authorId = (defaultUser as any)._id.toString();
+      }
+
+      const post = await PostService.createPost(postData, authorId);
 
       res.status(201).json({
         success: true,
+        returnCode: 201,
         message: 'Post created successfully',
-        data: post
+        result: post
       });
     } catch (error: any) {
       res.status(500).json({
         success: false,
-        message: error.message
+        returnCode: 500,
+        message: error.message,
+        detail: error.stack
       });
     }
   }
@@ -338,8 +624,18 @@ export class PostController {
    *                 type: string
    *               content:
    *                 type: string
-   *               excerpt:
+   *               description:
    *                 type: string
+   *                 description: Post description (deprecated, use description_en, description_vi, description_ko)
+   *               description_en:
+   *                 type: string
+   *                 description: Post description in English
+   *               description_vi:
+   *                 type: string
+   *                 description: Post description in Vietnamese
+   *               description_ko:
+   *                 type: string
+   *                 description: Post description in Korean
    *               status:
    *                 type: string
    *                 enum: [draft, published, pending, archived, private]
@@ -655,7 +951,7 @@ export class PostController {
       }
 
       const preview = PostService.getSeoSnippetPreview({
-        title,
+        title_en: title,
         permalink,
         metaDescription,
         siteName
@@ -718,10 +1014,24 @@ export class PostController {
    *                       id:
    *                         type: string
    *                         description: Post ID
-   *                       title:
+   *                       title_en:
    *                         type: string
-   *                       description:
+   *                         description: Title in English
+   *                       title_vi:
    *                         type: string
+   *                         description: Title in Vietnamese
+   *                       title_ko:
+   *                         type: string
+   *                         description: Title in Korean
+   *                       description_en:
+   *                         type: string
+   *                         description: Description in English
+   *                       description_vi:
+   *                         type: string
+   *                         description: Description in Vietnamese
+   *                       description_ko:
+   *                         type: string
+   *                         description: Description in Korean
    *                       thumbnailImage:
    *                         type: string
    *                         nullable: true
@@ -742,6 +1052,142 @@ export class PostController {
    *       500:
    *         description: Internal server error
    */
+  /**
+   * @swagger
+   * /api/blog/detail/{id}:
+   *   get:
+   *     summary: Get blog post detail by ID
+   *     tags: [Posts]
+   *     parameters:
+   *       - in: path
+   *         name: id
+   *         required: true
+   *         schema:
+   *           type: string
+   *         description: Post ID
+   *       - in: query
+   *         name: locale
+   *         schema:
+   *           type: string
+   *           enum: [vi, en, ko]
+   *           default: vi
+   *         description: Locale for title and description
+   *     responses:
+   *       200:
+   *         description: Blog post detail retrieved successfully
+   *         content:
+   *           application/json:
+   *             schema:
+   *               type: object
+   *               properties:
+   *                 success:
+   *                   type: boolean
+   *                 returnCode:
+   *                   type: integer
+   *                 message:
+   *                   type: string
+   *                 result:
+   *                   type: object
+   *                   properties:
+   *                     id:
+   *                       type: string
+   *                     title:
+   *                       type: string
+   *                     description:
+   *                       type: string
+   *                     author:
+   *                       type: string
+   *                     tags:
+   *                       type: array
+   *                       items:
+   *                         type: string
+   *                     updatedAt:
+   *                       type: string
+   *                       format: date-time
+   *                     createdAt:
+   *                       type: string
+   *                       format: date-time
+   *       404:
+   *         description: Post not found
+   *       500:
+   *         description: Internal server error
+   */
+  static async getBlogDetail(req: Request, res: Response): Promise<void> {
+    try {
+      const { id } = req.params;
+      const { locale = 'vi' } = req.query;
+
+      if (!id || !mongoose.Types.ObjectId.isValid(id)) {
+        res.status(404).json({
+          success: false,
+          returnCode: 404,
+          message: 'Post not found'
+        });
+        return;
+      }
+
+      // Validate locale
+      const validLocales = ['en', 'vi', 'ko'];
+      const selectedLocale = validLocales.includes(locale as string) ? (locale as string) : 'vi';
+
+      const post = await PostService.getPostById(id);
+
+      if (!post) {
+        res.status(404).json({
+          success: false,
+          returnCode: 404,
+          message: 'Post not found'
+        });
+        return;
+      }
+
+      // Lấy title theo locale
+      const title = selectedLocale === 'vi'
+        ? (post.title_vi || post.title_en || 'Blog')
+        : selectedLocale === 'ko'
+          ? (post.title_ko || post.title_en || 'Blog')
+          : (post.title_en || 'Blog');
+
+      // Lấy description theo locale
+      let description = selectedLocale === 'vi'
+        ? (post.description_vi || post.description_en || '')
+        : selectedLocale === 'ko'
+          ? (post.description_ko || post.description_en || '')
+          : (post.description_en || '');
+
+      // Làm sạch description: loại bỏ \r\n, \n, \r và khoảng trắng thừa
+      description = description
+        .replace(/\r\n/g, ' ')
+        .replace(/\n/g, ' ')
+        .replace(/\r/g, ' ')
+        .replace(/\s+/g, ' ')
+        .trim();
+
+      // Trả về các field theo yêu cầu
+      res.status(200).json({
+        success: true,
+        returnCode: 200,
+        message: 'Blog detail retrieved successfully',
+        result: {
+          id: (post as any)._id.toString(),
+          title: title || 'Blog',
+          description: description,
+          author: 'VINPET',
+          tags: post.tags || [],
+          updatedAt: post.updatedAt ? new Date(post.updatedAt).toISOString() : new Date().toISOString(),
+          createdAt: post.createdAt ? new Date(post.createdAt).toISOString() : new Date().toISOString()
+        }
+      });
+    } catch (error: any) {
+      res.status(500).json({
+        success: false,
+        returnCode: 500,
+        message: error.message,
+        detail: error.stack
+      });
+    }
+  }
+
   static async getBlogPosts(req: Request, res: Response): Promise<void> {
     try {
       const {
@@ -781,21 +1227,16 @@ export class PostController {
             console.warn(`No images found for post ${post._id}`);
           }
 
-          // Create description from excerpt or content
-          let description = post.excerpt || '';
-          if (!description && post.content) {
-            // Strip HTML tags and get first 200 characters
-            const plainText = post.content.replace(/<[^>]*>/g, '').trim();
-            description = plainText.length > 200
-              ? plainText.substring(0, 200) + '...'
-              : plainText;
-          }
-
-          // Build response object - only include thumbnailImage if it has a value
+          // Build response object with multilingual fields
+          // Description chỉ lấy từ description đúng ngôn ngữ, không fallback về description cũ
           const responseItem: any = {
             id: post._id.toString(),
-            title: post.title,
-            description: description,
+            title_en: post.title_en || '',
+            title_vi: post.title_vi || '',
+            title_ko: post.title_ko || '',
+            description_en: post.description_en || '',
+            description_vi: post.description_vi || '',
+            description_ko: post.description_ko || '',
             createdAt: post.createdAt
           };
 
@@ -819,6 +1260,91 @@ export class PostController {
           pageSize: parseInt(pageSize as string) || 10,
           totalItems: result.totalItems,
           totalPages: result.totalPages
+        }
+      });
+    } catch (error: any) {
+      res.status(500).json({
+        success: false,
+        returnCode: 500,
+        message: error.message,
+        detail: error.stack
+      });
+    }
+  }
+
+  /**
+   * @swagger
+   * /api/posts/{id}/images:
+   *   delete:
+   *     summary: Delete all images of a post
+   *     tags: [Posts]
+   *     parameters:
+   *       - in: path
+   *         name: id
+   *         required: true
+   *         schema:
+   *           type: string
+   *         description: Post ID
+   *     responses:
+   *       200:
+   *         description: All images deleted successfully
+   *         content:
+   *           application/json:
+   *             schema:
+   *               type: object
+   *               properties:
+   *                 success:
+   *                   type: boolean
+   *                 returnCode:
+   *                   type: integer
+   *                 message:
+   *                   type: string
+   *                 result:
+   *                   type: object
+   *                   properties:
+   *                     deletedCount:
+   *                       type: integer
+   *       404:
+   *         description: Post not found
+   *       500:
+   *         description: Internal server error
+   */
+  static async deletePostImages(req: Request, res: Response): Promise<void> {
+    try {
+      const { id } = req.params;
+
+      if (!id || !mongoose.Types.ObjectId.isValid(id)) {
+        res.status(400).json({
+          success: false,
+          returnCode: 400,
+          message: 'Invalid post ID'
+        });
+        return;
+      }
+
+      // Check if post exists
+      const post = await PostService.getPostById(id);
+      if (!post) {
+        res.status(404).json({
+          success: false,
+          returnCode: 404,
+          message: 'Post not found'
+        });
+        return;
+      }
+
+      // Import PhotoService to avoid circular dependency
+      const { PhotoService } = await import('../services/PhotoService');
+
+      // Delete all photos of this post
+      const deletedCount = await PhotoService.deletePhotosByPostId(id);
+
+      res.status(200).json({
+        success: true,
+        returnCode: 200,
+        message: `Successfully deleted ${deletedCount} image(s)`,
+        result: {
+          deletedCount: deletedCount
         }
       });
     } catch (error: any) {
